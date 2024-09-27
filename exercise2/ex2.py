@@ -45,16 +45,13 @@ class ExerciseOneProgram:
     data_path = "./dataset/dataset/Data"
     
     def insert_data_user(self):
-        all_files = [f.name for f in os.scandir(self.data_path) if f.is_dir()]
-        # for root, dirs, files in os.walk(self.data_path):
-        #     print(root)
-        #     print(dirs)
-        #     print(files)
-        #     for file in dirs:
-        #         all_files.append(file)
-        print("All files", all_files)
-        for file in all_files:
-            print(file)
+        folder_names = []
+        for root, dirs, files in os.walk(self.data_path):
+            folder_names.extend(dirs)
+            # Stop after the first level
+            break
+            
+        print(folder_names)
 
     # def insert_data(self):
     #     query = "INSERT INTO USER (id, has_labels) VALUES (010, TRUE);"
