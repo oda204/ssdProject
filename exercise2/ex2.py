@@ -68,6 +68,7 @@ class ExerciseOneProgram:
 
     def insert_data_activity(self):
         folder_files_dict = {}
+        has_labels_dict = {}
 
         # Traverse the main directory and its immediate subdirectories
         for root, dirs, files in os.walk(self.data_path + "/Data"):
@@ -77,9 +78,20 @@ class ExerciseOneProgram:
             # Now, for each immediate subdirectory, gather file names
             for folder in dirs:
                 folder_path = os.path.join(root, folder)
+        
                 for sub_root, sub_dirs, sub_files in os.walk(folder_path):
                     # Add the subfolder and its associated file names to the dictionary
-                    folder_files_dict[folder] = sub_files
+                    if len(sub_files) == 0:
+                        has_labels_dict[folder] = False
+                    elif sub_files[0].endswith(".txt"):
+                        has_labels_dict[folder] = True
+                    else:
+                        folder_files_dict[folder] = sub_files
+        
+
+                    # print("Sub Dirs: ", sub_dirs)
+                    # print("Sub Files: ", sub_files)
+                    
                 # No need to go deeper into nested subdirectories
                 
             
@@ -108,12 +120,9 @@ class ExerciseOneProgram:
                         start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
                         end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
                         
-                    
-
-                        # id = int(key + file_name.split(".")[0])
                         user_id = int(key)
 
-                        print(user_id, start_time, end_time)
+                        # print(user_id, start_time, end_time)
                         query = "INSERT INTO ACTIVITY (user_id, start_date_time, end_date_time) VALUES (%s, %s, %s);"
                         self.cursor.execute(query, (user_id, start_time, end_time))
                     break
@@ -154,15 +163,15 @@ def main():
     try:
         program = ExerciseOneProgram()  
 
-        program.drop_table(table_name="TRACKPOINT")
-        program.drop_table(table_name="ACTIVITY")
-        program.drop_table(table_name="USER")   
+        # program.drop_table(table_name="TRACKPOINT")
+        # program.drop_table(table_name="ACTIVITY")
+        # program.drop_table(table_name="USER")   
 
         program.create_tables()
         program.insert_data_user()
         program.insert_data_activity()
-        _ = program.fetch_data(table_name="USER")
-        _ = program.fetch_data(table_name="ACTIVITY")
+        # _ = program.fetch_data(table_name="USER")
+        # _ = program.fetch_data(table_name="ACTIVITY")
         # program.drop_table(table_name="User")
         # Check that the table is dropped
         program.show_tables()
