@@ -17,7 +17,7 @@ class ExerciseOneProgram:
         ); """
 
         activity_table = """CREATE TABLE IF NOT EXISTS ACTIVITY (
-            id INT NOT NULL,
+            id INT AUTO_INCREMENT NOT NULL,
             user_id INT NOT NULL,
             transportation_mode TEXT DEFAULT NULL,
             start_date_time DATETIME,
@@ -110,13 +110,15 @@ class ExerciseOneProgram:
                         
                     
 
-                        id = int(key + file_name.split(".")[0])
+                        # id = int(key + file_name.split(".")[0])
                         user_id = int(key)
 
-                        print(id, user_id, start_time, end_time)
-                        query = "INSERT INTO ACTIVITY (id, user_id, start_date_time, end_date_time) VALUES (%s, %s, %s, %s);"
-                        self.cursor.execute(query, (id, user_id, start_time, end_time))
+                        print(user_id, start_time, end_time)
+                        query = "INSERT INTO ACTIVITY (user_id, start_date_time, end_date_time) VALUES (%s, %s, %s);"
+                        self.cursor.execute(query, (user_id, start_time, end_time))
                     break
+
+            
 
 
 
@@ -150,7 +152,12 @@ class ExerciseOneProgram:
 def main():
     program = None
     try:
-        program = ExerciseOneProgram()        
+        program = ExerciseOneProgram()  
+
+        program.drop_table(table_name="TRACKPOINT")
+        program.drop_table(table_name="ACTIVITY")
+        program.drop_table(table_name="USER")   
+
         program.create_tables()
         program.insert_data_user()
         program.insert_data_activity()
