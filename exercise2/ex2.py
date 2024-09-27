@@ -41,22 +41,34 @@ class ExerciseOneProgram:
         self.cursor.execute(activity_table)
         self.cursor.execute(trackpoint_table)
 
+        # self.db_connection.commit()
+
         
-    data_path = "./dataset/dataset/Data"
+    data_path = os.getcwd() + "/dataset/dataset"
+    
     
     def insert_data_user(self):
         folder_names = []
-        for root, dirs, files in os.walk(self.data_path):
+        for root, dirs, files in os.walk(self.data_path + "/Data"):
             folder_names.extend(dirs)
             # Stop after the first level
             break
-            
-        print(folder_names)
+        with open(self.data_path + "/labeled_ids.txt") as file:
+            labeled_ids = file.readlines()
+        
+        labeled_ids = [int(id.strip()) for id in labeled_ids]
 
-    # def insert_data(self):
-    #     query = "INSERT INTO USER (id, has_labels) VALUES (010, TRUE);"
+        query = "INSERT INTO USER (id, has_labels) VALUES (%s, %s);"
+        for user_id in folder_names:
+            user_id = int(user_id)
+            self.cursor.execute(query, (user_id, user_id in labeled_ids))
 
-    #     self.cursor.execute(query)
+        # self.db_connection.commit()
+
+    def insert_data_activity(self):
+        query = "INSERT INTO USER (id, has_labels) VALUES (010, TRUE);"
+
+        self.cursor.execute(query)
     
     def fetch_data(self, table_name):
         query = "SELECT * FROM %s"
@@ -70,7 +82,9 @@ class ExerciseOneProgram:
         return rows
 
     def drop_table(self, table_name):
-        pass
+        print("Dropping table %s..." % table_name)
+        query = "DROP TABLE %s"
+        self.cursor.execute(query % table_name)
 
     def show_tables(self):
         # self.cursor.execute("SELECT * FROM USER")
@@ -82,7 +96,7 @@ class ExerciseOneProgram:
 def main():
     program = None
     try:
-        program = ExerciseOneProgram()
+        program = ExerciseOneProgram()        
         program.create_tables()
         program.insert_data_user()
         _ = program.fetch_data(table_name="USER")
@@ -90,7 +104,9 @@ def main():
         # Check that the table is dropped
         program.show_tables()
         
-        # program.drop_table(table_name="USER")
+        program.drop_table(table_name="TRACKPOINT")
+        program.drop_table(table_name="ACTIVITY")
+        program.drop_table(table_name="USER")
     
     except Exception as e:
         print("ERROR: Failed to use database:", e)
