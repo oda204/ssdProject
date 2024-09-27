@@ -88,52 +88,62 @@ class ExerciseOneProgram:
                     else:
                         folder_files_dict[folder] = sub_files
         
-
-                    # print("Sub Dirs: ", sub_dirs)
-                    # print("Sub Files: ", sub_files)
-                    
-                # No need to go deeper into nested subdirectories
-                
-            
-            # Stop after the first level to avoid recursion
             break
         
         folder_files_dict.pop("Data")
 
-        for key, value in folder_files_dict.items():
-            for file_name in value:
-                if not file_name.endswith(".txt"):
-                    file_path = os.path.join(self.data_path + "/Data", key, "Trajectory", file_name)
-                    with open(file_path, "r") as file:
-                        lines = file.readlines()
-                    if len(lines) <= 2506:
-                        start_day = lines[6].split(",")[-2].replace('/', '-').strip()
-                        start_time = lines[6].split(",")[-1].strip()
+        for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
             
-                        end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
-                        end_time = lines[-1].split(",")[-1].strip()
+            user_label_dict = {}
 
-                        start_datetime_str = f"{start_day} {start_time}"
-                        end_datetime_str = f"{end_day} {end_time}"
+            if has_labels_dict[key]: # read in labels.txt file
+                with open(self.data_path + "/Data/" + key + "/labels.txt") as file:
+                    lines = file.readlines()
 
-                        # Convert to a datetime object
-                        start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
-                        end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
-                        
-                        user_id = int(key)
+                for line in lines[1:]: # skip the first line of headers
+                    data = line.rsplit("\t", 1)
+                    
+                    datekey = data[0].strip().replace("\t", ", ")
+                    datekey = datekey.replace("/", "-")
+                    transportation_mode = data[1].strip()
 
-                        # print(user_id, start_time, end_time)
+                    user_label_dict[datekey] = transportation_mode
+            
+            for file_name in value:
+                file_path = os.path.join(self.data_path + "/Data", key, "Trajectory", file_name)
+                with open(file_path, "r") as file:
+                    lines = file.readlines()
+                if len(lines) <= 2506:
+                    start_day = lines[6].split(",")[-2].replace('/', '-').strip()
+                    start_time = lines[6].split(",")[-1].strip()
+        
+                    end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
+                    end_time = lines[-1].split(",")[-1].strip()
+
+                    start_datetime_str = f"{start_day} {start_time}"
+                    end_datetime_str = f"{end_day} {end_time}"
+
+                    start_end = start_datetime_str + ", " + end_datetime_str
+
+                    if start_end in user_label_dict.keys():
+                        transportation_mode = user_label_dict[start_end]
+                    else:
+                        transportation_mode = None
+
+                    # Convert to a datetime object
+                    start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
+                    end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
+                    
+                    user_id = int(key)
+
+                    # print(user_id, start_time, end_time)
+                    if transportation_mode == None:
                         query = "INSERT INTO ACTIVITY (user_id, start_date_time, end_date_time) VALUES (%s, %s, %s);"
                         self.cursor.execute(query, (user_id, start_time, end_time))
-                    break
-
-            
-
-
-
+                    else:
+                        query = "INSERT INTO ACTIVITY (user_id, transportation_mode, start_date_time, end_date_time) VALUES (%s, %s, %s, %s);"
+                        self.cursor.execute(query, (user_id, transportation_mode, start_time, end_time))
     
-
-        # self.cursor.execute(query)
     
     def fetch_data(self, table_name):
         query = "SELECT * FROM %s"
@@ -171,7 +181,7 @@ def main():
         program.insert_data_user()
         program.insert_data_activity()
         # _ = program.fetch_data(table_name="USER")
-        # _ = program.fetch_data(table_name="ACTIVITY")
+        _ = program.fetch_data(table_name="ACTIVITY")
         # program.drop_table(table_name="User")
         # Check that the table is dropped
         program.show_tables()
