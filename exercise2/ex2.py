@@ -7,8 +7,11 @@ class ExerciseOneProgram:
         self.db_connection = self.connection.db_connection
         self.cursor = self.connection.cursor
 
-    def create_table(self, table_name):
-        pass
+    def create_tables(self):
+        user_table = """CREATE TABLE IF NOT EXISITS USER (
+            id STRING NOT NULL PRIMARY KEY,
+            has_labels BOOLEAN 
+        ) """
 
     def insert_data(self, table_name):
         pass
