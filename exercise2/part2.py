@@ -97,7 +97,33 @@ class QueryProgram:
     def year(self):
         """6. a) Find the year with the most activities.
         b) Is this also the year with most recorded hours?"""
-        pass
+        
+        query_activities = """
+        SELECT YEAR(start_date_time) AS year, 
+            COUNT(*) AS activity_count,
+            SUM(TIMESTAMPDIFF(HOUR, start_date_time, end_date_time)) AS total_hours
+        FROM ACTIVITY
+        GROUP BY YEAR(start_date_time)
+        ORDER BY activity_count DESC, total_hours DESC
+        """
+        
+        self.cursor.execute(query_activities)
+        results = self.cursor.fetchall()
+        
+        if not results:
+            return None, None, False
+        
+        year_most_activities, max_activities, hours_most_activities = results[0]
+        
+        # Check if the year with most activities is also the year with most hours
+        year_most_hours = max(results, key=lambda x: x[2])[0]
+        
+        is_same_year = year_most_activities == year_most_hours
+        
+        """GOOD CHANCE THAT THIS NEEDS TO BE WORKED FURTHER ON TO ACTUALLY WORK"""
+        
+        return year_most_activities, year_most_hours, is_same_year
+        
 
     def distance2008(self):
         """7. Find the total distance (in km) walked in 2008, by user with id=112."""
