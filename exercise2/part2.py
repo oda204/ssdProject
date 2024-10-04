@@ -63,7 +63,18 @@ class QueryProgram:
 
     def taxi(self):
         """4. Find all users who have taken a taxi."""
-        pass
+        query = """
+        SELECT DISTINCT user_id 
+        FROM ACTIVITY
+        WHERE transportation_mode = 'taxi'
+        ORDER BY user_id
+        """
+        #use distinct because we only want to count each user once, and only interested where transport is taxi
+        
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        return [result[0] for result in results]  # Return a list of user IDs
 
     def transporationModes(self):
         """5. Find all types of transportation modes and count how many activities that are
