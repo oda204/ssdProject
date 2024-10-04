@@ -6,9 +6,26 @@ class QueryProgram:
     
     def howMany(self):
         """1. How many users, activities and trackpoints are there in the dataset (after it is
-    inserted into the database)."""
-        pass
-
+        inserted into the database)."""
+        # Count users
+        user_query = "SELECT COUNT(*) FROM USER"
+        self.cursor.execute(user_query)
+        user_count = self.cursor.fetchone()[0]
+        
+        #Count activities
+        activity_query = "SELECT COUNT(*) FROM ACTIVITY"
+        self.cursor.execute(activity_query)
+        activity_count = self.cursor.fetchone()[0]
+        
+        #Count trackpoints
+        trackpoint_query = "SELECT COUNT(*) FROM TRACKPOINT"
+        self.cursor.execute(trackpoint_query)
+        trackpoint_count = self.cursor.fetchone()[0]
+        
+        """SHOULD WE ALSO PRINT EEACH RESULT FOR REPORT?? OR DO IT TOGETHER LATER?"""
+        
+        return user_count, activity_count, trackpoint_count 
+    
     def averageActivities(self):
         """2. What is the average number of activities per user?"""
         pass
