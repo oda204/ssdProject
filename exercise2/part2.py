@@ -53,7 +53,7 @@ class QueryProgram:
         self.cursor.execute(query)
         average = self.cursor.fetchone()
         
-        print(f"{'Average number of activities':<15} {result2[0]:<10}")
+        print(f"{'Average number of activities':<15} {average[0]:<10}")
         return average
         
         
@@ -72,6 +72,8 @@ class QueryProgram:
         
         self.cursor.execute(query)
         results = self.cursor.fetchall()
+
+        print(tabulate.tabulate(results, headers=["User ID", "Activity Count"]))
         
         return results
 
@@ -87,13 +89,17 @@ class QueryProgram:
         
         self.cursor.execute(query)
         results = self.cursor.fetchall()
+
+        # print([results[i][0] for i in range(len(results))])
         
         return [result[0] for result in results]  # Return a list of user IDs
 
     def transporationModes(self):
-        """5. Find all types of transportation modes and count how many activities that are
-    tagged with these transportation mode labels. Do not count the rows where
-    the mode is null."""
+        """
+        5. Find all types of transportation modes and count how many activities that are
+        tagged with these transportation mode labels. Do not count the rows where
+        the mode is null.
+        """
     
         query = """
         SELECT transportation_mode, COUNT(*) as activity_count
@@ -106,11 +112,15 @@ class QueryProgram:
         self.cursor.execute(query)
         results = self.cursor.fetchall()
         
+        print(tabulate.tabulate(results, headers=["Transportation Mode", "Activity Count"]))
         return results
 
     def year(self):
-        """6. a) Find the year with the most activities.
-        b) Is this also the year with most recorded hours?"""
+        """
+        6. 
+        a) Find the year with the most activities.
+        b) Is this also the year with most recorded hours?
+        """
         
         query_activities = """
         SELECT YEAR(start_date_time) AS year, 
@@ -285,7 +295,18 @@ def main():
         print("-"*15)
         program.averageActivities()
         print(" ")
-        print("3: ")
+        print("3: The top 20 users with the most activities")
+        print("-"*15)
+        program.top20()
+        print(" ")
+        print("4: Users who have taken a taxi")
+        print("-"*15)
+        print(program.taxi())
+        print(" ")
+        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        print("-"*15)
+        program.transporationModes()
+        print(" ")
         
     except Exception as e:
         print("ERROR: Failed to use database:", e)
