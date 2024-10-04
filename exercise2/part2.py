@@ -80,7 +80,19 @@ class QueryProgram:
         """5. Find all types of transportation modes and count how many activities that are
     tagged with these transportation mode labels. Do not count the rows where
     the mode is null."""
-        pass
+    
+        query = """
+        SELECT transportation_mode, COUNT(*) as activity_count
+        FROM ACTIVITY
+        WHERE transportation_mode IS NOT NULL
+        GROUP BY transportation_mode
+        ORDER BY activity_count DESC, transportation_mode
+        """
+        
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        return results
 
     def year(self):
         """6. a) Find the year with the most activities.
