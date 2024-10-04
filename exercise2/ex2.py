@@ -27,7 +27,7 @@ class ExerciseOneProgram:
         ); """
 
         trackpoint_table = """CREATE TABLE IF NOT EXISTS TRACKPOINT (
-            id INT NOT NULL,
+            id INT AUTO_INCREMENT NOT NULL,
             activity_id INT NOT NULL,
             lat DOUBLE,
             lon DOUBLE,
@@ -64,7 +64,7 @@ class ExerciseOneProgram:
             user_id = int(user_id)
             self.cursor.execute(query, (user_id, user_id in labeled_ids))
 
-        # self.db_connection.commit()
+        self.db_connection.commit()
 
     def insert_data_activity(self):
         folder_files_dict = {}
@@ -143,7 +143,91 @@ class ExerciseOneProgram:
                     else:
                         query = "INSERT INTO ACTIVITY (user_id, transportation_mode, start_date_time, end_date_time) VALUES (%s, %s, %s, %s);"
                         self.cursor.execute(query, (user_id, transportation_mode, start_time, end_time))
+        
+        self.db_connection.commit()
+
     
+    def insert_data_trackpoint(self):
+        # check if the activity exists and if it does, insert trackpoint data
+        folder_files_dict = {}
+
+        # Traverse the main directory and its immediate subdirectories
+        for root, dirs, files in os.walk(self.data_path + "/Data"):
+            # Collect file names in the main directory (root level)
+            folder_files_dict[os.path.basename(root)] = files
+            
+            # Now, for each immediate subdirectory, gather file names
+            for folder in dirs:
+                folder_path = os.path.join(root, folder)
+        
+                for sub_root, sub_dirs, sub_files in os.walk(folder_path):
+                    # Add the subfolder and its associated file names to the dictionary
+                    if len(sub_files) == 0 or sub_files[0].endswith(".txt"):
+                        continue
+                    else:
+                        folder_files_dict[folder] = sub_files
+        
+            break
+
+        folder_files_dict.pop("Data")
+
+
+        for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
+
+            for file_name in value:
+                # get the activity id by key (user id)  and the start time which is the file name of the trajectory file (trackpoints file)
+                start_date_time = file_name.split(".")[0]
+                year = start_date_time[:4]
+                month = start_date_time[4:6]
+                day = start_date_time[6:8]
+                hour = start_date_time[8:10]
+                minute = start_date_time[10:12]
+                second = start_date_time[12:14]
+                start_time = datetime.strptime(f"{year}-{month}-{day} {hour}:{minute}:{second}", '%Y-%m-%d %H:%M:%S')
+                query = "SELECT id FROM ACTIVITY WHERE user_id = %s AND start_date_time = %s;"
+                activity_id = self.cursor.execute(query, (int(key), start_time))
+                
+                # if the activity does not exist, skip the trackpoint data and continue with the next file
+                if activity_id.empty:
+                    print("Skipping trackpoint data for activity that does not exist: ", key, file_name)
+                    continue
+                
+                # create a temprorary list of tuples for batch write
+                all_trackpoints = []
+
+                file_path = os.path.join(self.data_path + "/Data", key, "Trajectory", file_name)
+                with open(file_path, "r") as file:
+                    lines = file.readlines()
+                if len(lines) <= 2506:
+                    # go through each line as a trackpoint
+                    for line in (6, len(lines)):
+                        lat = lines[line].split(",")[0].strip()
+                        lon = lines[line].split(",")[1].strip()
+                        # skip the 3rd line (all  set to 0 in dataset)
+                        altitude = int(lines[line].split(",")[3].strip()) 
+                        altitude = -777 if altitude < -777 else altitude # define as invalid if altitude is less than -777
+
+                        date_days = lines[line].split(",")[4].strip()
+                        date = lines[line].split(",")[5].strip()
+                        time = lines[line].split(",")[6].strip()
+
+                        # convert date and time to a datetime object
+                        date_time = datetime.strptime(f"{date} {date_time}", '%Y-%m-%d %H:%M:%S')
+                        trackpoint = (activity_id, lat, lon, altitude, date_days, date_time)
+                        print(f"Trackpoint: {trackpoint}")
+
+                        all_trackpoints.append(trackpoint)
+                    break
+                        
+                
+                # batch insert all trackpoints in the list
+                query = "INSERT INTO TRACKPOINT (activity_id, lat, lon, altitude, date_days, date_time) VALUES (%s, %s, %s, %s, %s, %s);"
+                self.cursor.executemany(query, all_trackpoints)
+
+
+                    
+
+
     
     def fetch_data(self, table_name):
         query = "SELECT * FROM %s"
@@ -173,22 +257,21 @@ def main():
     try:
         program = ExerciseOneProgram()  
 
-        # program.drop_table(table_name="TRACKPOINT")
-        # program.drop_table(table_name="ACTIVITY")
-        # program.drop_table(table_name="USER")   
+        program.drop_table(table_name="TRACKPOINT")
+        program.drop_table(table_name="ACTIVITY")
+        program.drop_table(table_name="USER")   
 
         program.create_tables()
         program.insert_data_user()
         program.insert_data_activity()
+        program.insert_data_trackpoint()
         # _ = program.fetch_data(table_name="USER")
-        _ = program.fetch_data(table_name="ACTIVITY")
+        _ = program.fetch_data(table_name="TRACKPOINT")
         # program.drop_table(table_name="User")
         # Check that the table is dropped
         program.show_tables()
         
         program.drop_table(table_name="TRACKPOINT")
-        program.drop_table(table_name="ACTIVITY")
-        program.drop_table(table_name="USER")
     
     except Exception as e:
         print("ERROR: Failed to use database:", e)
