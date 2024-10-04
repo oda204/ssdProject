@@ -28,7 +28,21 @@ class QueryProgram:
     
     def averageActivities(self):
         """2. What is the average number of activities per user?"""
-        pass
+            query = """
+        SELECT 
+            (SELECT COUNT(*) FROM ACTIVITY) AS total_activities,
+            (SELECT COUNT(*) FROM USER) AS total_users
+        """
+        
+        self.cursor.execute(query)
+        result = self.cursor.fetchone()
+        
+        if result and result[1] != 0:  # Ensure we don't divide by zero
+            total_activities, total_users = result
+            average = total_activities / total_users
+            return average
+        else:
+            return 0  # or you could return None or raise an exception
         
         
     def top20(self):
