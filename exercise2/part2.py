@@ -1,9 +1,10 @@
+from DbConnector import DbConnector
 from haversine import haversine, Unit
 import tabulate
 from collections import defaultdict
 
 class QueryProgram:
-     def __init__(self):
+    def __init__(self):
         self.connection = DbConnector()
         self.db_connection = self.connection.db_connection
         self.cursor = self.connection.cursor
@@ -28,30 +29,39 @@ class QueryProgram:
         
         """SHOULD WE ALSO PRINT EEACH RESULT FOR REPORT?? OR DO IT TOGETHER LATER?"""
         
+        print(f"{'Category':<15} {'Count':<10}")
+        print(f"{'-'*25}")
+        print(f"{'Users':<15} {user_count:<10}")
+        print(f"{'Activities':<15} {activity_count:<10}")
+        print(f"{'Trackpoints':<15} {trackpoint_count:<10}")
+        
         return user_count, activity_count, trackpoint_count 
     
     def averageActivities(self):
-        """2. What is the average number of activities per user?"""
-        query = """
-        SELECT 
-            COUNT(*) AS total_activities,
-            COUNT(DISTINCT user_id) AS total_users_with_activities
-        FROM ACTIVITY
         """
-        
+        2. What is the average number of activities per user?
+        """
+        query = """
+        SELECT AVG(activity_count) AS avg_activities_per_user
+        FROM (
+            SELECT COUNT(*) AS activity_count
+            FROM ACTIVITY
+            GROUP BY user_id
+        ) AS user_activity_counts
+        """ 
+
         self.cursor.execute(query)
-        result = self.cursor.fetchone()
+        average = self.cursor.fetchone()
         
-        if result and result[1] != 0:  # Ensure we don't divide by zero
-            total_activities, total_users = result
-            average = total_activities / total_users
-            return average
-        else:
-            return 0  # or you could return None or raise an exception
+        print(f"{'Average number of activities':<15} {result2[0]:<10}")
+        return average
         
         
     def top20(self):
-        """3. What is the top 20 of users with the most activities?"""
+        """
+        3. What is the top 20 of users with the most activities?
+        """
+
         query = """
         SELECT user_id, COUNT(*) as activity_count
         FROM ACTIVITY
@@ -267,7 +277,15 @@ def main():
     try:
         program = QueryProgram()  
 
-        program.show_tables()
+        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        print("-"*15)
+        program.howMany()
+        print(" ")
+        print("2: Average number of activities per user")
+        print("-"*15)
+        program.averageActivities()
+        print(" ")
+        print("3: ")
         
     except Exception as e:
         print("ERROR: Failed to use database:", e)
