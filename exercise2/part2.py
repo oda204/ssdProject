@@ -28,7 +28,7 @@ class QueryProgram:
     
     def averageActivities(self):
         """2. What is the average number of activities per user?"""
-            query = """
+        query = """
         SELECT 
             COUNT(*) AS total_activities,
             COUNT(DISTINCT user_id) AS total_users_with_activities
@@ -48,7 +48,18 @@ class QueryProgram:
         
     def top20(self):
         """3. What is the top 20 of users with the most activities?"""
-        pass
+        query = """
+        SELECT user_id, COUNT(*) as activity_count
+        FROM ACTIVITY
+        GROUP BY user_id
+        ORDER BY activity_count DESC
+        LIMIT 20
+        """
+        
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        return results
 
     def taxi(self):
         """4. Find all users who have taken a taxi."""
