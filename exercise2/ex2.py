@@ -9,7 +9,8 @@ class ExerciseOneProgram:
         self.db_connection = self.connection.db_connection
         self.cursor = self.connection.cursor
 
-    def create_tables(self):
+    def create_tables(self, name=None):
+        
         user_table = """CREATE TABLE IF NOT EXISTS USER (
             id INT NOT NULL,
             PRIMARY KEY (id),
@@ -38,11 +39,18 @@ class ExerciseOneProgram:
             FOREIGN KEY (activity_id) REFERENCES ACTIVITY(id)
         ); """
 
-        self.cursor.execute(user_table)
-        self.cursor.execute(activity_table)
-        self.cursor.execute(trackpoint_table)
+        if name == "USER":
+            self.cursor.execute(user_table)
+        elif name == "ACTIVITY":
+            self.cursor.execute(activity_table)
+        elif name == "TRACKPOINT":
+            self.cursor.execute(trackpoint_table)
+        else:
+            self.cursor.execute(user_table)
+            self.cursor.execute(activity_table)
+            self.cursor.execute(trackpoint_table)
 
-        # self.db_connection.commit()
+        self.db_connection.commit()
 
         
     data_path = os.getcwd() + "/dataset/dataset"
@@ -185,12 +193,17 @@ class ExerciseOneProgram:
                 second = start_date_time[12:14]
                 start_time = datetime.strptime(f"{year}-{month}-{day} {hour}:{minute}:{second}", '%Y-%m-%d %H:%M:%S')
                 query = "SELECT id FROM ACTIVITY WHERE user_id = %s AND start_date_time = %s;"
-                activity_id = self.cursor.execute(query, (int(key), start_time))
+                self.cursor.execute(query, (int(key), start_time))
+                activity_id = self.cursor.fetchall()
+                print(activity_id)
                 
                 # if the activity does not exist, skip the trackpoint data and continue with the next file
-                if activity_id.empty:
+                if len(activity_id) == 0:
                     print("Skipping trackpoint data for activity that does not exist: ", key, file_name)
                     continue
+
+                activity_id = activity_id[0][0]  # Extract the actual activity ID
+                print(f"Found activity ID: {activity_id}")  
                 
                 # create a temprorary list of tuples for batch write
                 all_trackpoints = []
@@ -200,11 +213,11 @@ class ExerciseOneProgram:
                     lines = file.readlines()
                 if len(lines) <= 2506:
                     # go through each line as a trackpoint
-                    for line in (6, len(lines)):
+                    for line in range(6, len(lines)):
                         lat = lines[line].split(",")[0].strip()
                         lon = lines[line].split(",")[1].strip()
                         # skip the 3rd line (all  set to 0 in dataset)
-                        altitude = int(lines[line].split(",")[3].strip()) 
+                        altitude = int(round(float(lines[line].split(",")[3].strip()),0)) 
                         altitude = -777 if altitude < -777 else altitude # define as invalid if altitude is less than -777
 
                         date_days = lines[line].split(",")[4].strip()
@@ -212,23 +225,19 @@ class ExerciseOneProgram:
                         time = lines[line].split(",")[6].strip()
 
                         # convert date and time to a datetime object
-                        date_time = datetime.strptime(f"{date} {date_time}", '%Y-%m-%d %H:%M:%S')
+                        date_time = datetime.strptime(f"{date} {time}", '%Y-%m-%d %H:%M:%S')
                         trackpoint = (activity_id, lat, lon, altitude, date_days, date_time)
                         print(f"Trackpoint: {trackpoint}")
 
                         all_trackpoints.append(trackpoint)
-                    break
-                        
                 
                 # batch insert all trackpoints in the list
                 query = "INSERT INTO TRACKPOINT (activity_id, lat, lon, altitude, date_days, date_time) VALUES (%s, %s, %s, %s, %s, %s);"
                 self.cursor.executemany(query, all_trackpoints)
 
-
-                    
-
-
-    
+        self.db_connection.commit()
+                
+                
     def fetch_data(self, table_name):
         query = "SELECT * FROM %s"
         self.cursor.execute(query % table_name)
@@ -241,9 +250,11 @@ class ExerciseOneProgram:
         return rows
 
     def drop_table(self, table_name):
+        # only drop table if it exists
         print("Dropping table %s..." % table_name)
-        query = "DROP TABLE %s"
+        query = "DROP TABLE IF EXISTS %s"
         self.cursor.execute(query % table_name)
+        self.db_connection.commit()
 
     def show_tables(self):
         # self.cursor.execute("SELECT * FROM USER")
@@ -257,6 +268,7 @@ def main():
     try:
         program = ExerciseOneProgram()  
 
+        program.show_tables()
         program.drop_table(table_name="TRACKPOINT")
         program.drop_table(table_name="ACTIVITY")
         program.drop_table(table_name="USER")   
