@@ -30,8 +30,9 @@ class QueryProgram:
         """2. What is the average number of activities per user?"""
             query = """
         SELECT 
-            (SELECT COUNT(*) FROM ACTIVITY) AS total_activities,
-            (SELECT COUNT(*) FROM USER) AS total_users
+            COUNT(*) AS total_activities,
+            COUNT(DISTINCT user_id) AS total_users_with_activities
+        FROM ACTIVITY
         """
         
         self.cursor.execute(query)
