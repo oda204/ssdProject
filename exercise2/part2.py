@@ -1,5 +1,6 @@
 from haversine import haversine, Unit
 import tabulate
+from collections import defaultdict
 
 class QueryProgram:
      def __init__(self):
@@ -175,6 +176,7 @@ class QueryProgram:
         
         """MÅ VURDERE HVORDAN VI SKAL REGNE UT AV DETTE - 
         skal man kun bruke starten og slutten? eller det høyeste og laveste punktet? 
+        SKRIV ANTAGELSER I REPORT
         """
     
         self.cursor.execute(query)
@@ -213,7 +215,33 @@ class QueryProgram:
 
     see tip for how to take advantage of datetime format in queriees . think there is functin to easily calcualte this
     """
-        pass
+        query = """
+        SELECT a.user_id, a.id AS activity_id, t1.date_days, t2.date_days
+        FROM TrackPoint t1
+        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        JOIN Activity a ON t1.activity_id = a.id
+        ORDER BY a.user_id, a.id, t1.id
+        """
+        
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        invalid_activities = defaultdict(set)
+        
+        for user_id, activity_id, date_days1, date_days2 in results:
+            time_diff_minutes = (date_days2 - date_days1) * 24 * 60  # Convert days to minutes
+            
+            if time_diff_minutes >= 5:
+                invalid_activities[user_id].add(activity_id)
+        
+        # Convert to list of tuples (user_id, invalid_activity_count)
+        invalid_activities_list = [(user_id, len(activities)) for user_id, activities in invalid_activities.items()]
+        
+        # Sort by number of invalid activities in descending order
+        invalid_activities_list.sort(key=lambda x: x[1], reverse=True)
+        
+        return invalid_activities_list
+        
 
     def forbiddenCity(self):
         """10. Find the users who have tracked an activity in the Forbidden City of Beijing. 
