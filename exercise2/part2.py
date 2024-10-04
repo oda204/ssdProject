@@ -1,3 +1,5 @@
+from haversine import haversine, Unit
+
 class QueryProgram:
      def __init__(self):
         self.connection = DbConnector()
@@ -127,7 +129,30 @@ class QueryProgram:
 
     def distance2008(self):
         """7. Find the total distance (in km) walked in 2008, by user with id=112."""
-        pass
+        
+        query = """
+        SELECT t1.lat, t1.lon, t2.lat, t2.lon
+        FROM TrackPoint t1
+        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        JOIN Activity a ON t1.activity_id = a.id
+        WHERE a.user_id = 112
+        AND a.transportation_mode = 'walk'
+        AND YEAR(a.start_date_time) = 2008
+        ORDER BY t1.activity_id, t1.id
+        """
+        
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        total_distance = 0
+        for lat1, lon1, lat2, lon2 in results:
+            point1 = (lat1, lon1)
+            point2 = (lat2, lon2)
+            distance = haversine(point1, point2, unit=Unit.KILOMETERS)
+            total_distance += distance
+        
+        return total_distance
+        
         
     def altitude(self):
         """8. Find the top 20 users who have gained the most altitude meters.
