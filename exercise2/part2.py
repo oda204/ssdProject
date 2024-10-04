@@ -1,4 +1,5 @@
 from haversine import haversine, Unit
+import tabulate
 
 class QueryProgram:
      def __init__(self):
@@ -156,12 +157,53 @@ class QueryProgram:
         
     def altitude(self):
         """8. Find the top 20 users who have gained the most altitude meters.
+        
         Output should be a table with (id, total meters gained per user).
         Remember that some altitude-values are invalid
         concrete tip about how to calculate it
         USE HAVERSINE PACKAGE for calculating distance
         could use Tabulate for printing tables"""
-        pass
+        
+        query = """
+        SELECT a.user_id, t1.lat, t1.lon, t1.altitude, t2.lat, t2.lon, t2.altitude
+        FROM TrackPoint t1
+        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        JOIN Activity a ON t1.activity_id = a.id
+        WHERE t1.altitude != -777 AND t2.altitude != -777
+        ORDER BY a.user_id, t1.activity_id, t1.id
+        """
+        
+        """MÅ VURDERE HVORDAN VI SKAL REGNE UT AV DETTE - 
+        skal man kun bruke starten og slutten? eller det høyeste og laveste punktet? 
+        """
+    
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        user_altitude_gain = defaultdict(float)
+        
+        for user_id, lat1, lon1, alt1, lat2, lon2, alt2 in results:
+            # Calculate horizontal distance
+            point1 = (lat1, lon1)
+            point2 = (lat2, lon2)
+            horizontal_distance = haversine(point1, point2, unit=Unit.METERS)
+            
+            # Calculate altitude difference
+            altitude_diff = alt2 - alt1
+            
+            # Only count positive altitude gains
+            """SKAL VI KUN REGNE MED POSITIVE?"""
+            if altitude_diff > 0:
+                # Use Pythagorean theorem to calculate actual distance traveled
+                """SYNES VI DET VIRKER FORNUFTIG Å BRUKE PYTHAGORAS HER?"""
+                actual_distance = (horizontal_distance**2 + altitude_diff**2)**0.5
+                user_altitude_gain[user_id] += altitude_diff
+        
+        # Sort users by altitude gain and get top 20
+        top_20 = sorted(user_altitude_gain.items(), key=lambda x: x[1], reverse=True)[:20]
+        
+        return top_20
+        
         
     def invalid(self):
         """9. Find all users who have invalid activities, and the number of invalid activities
