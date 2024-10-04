@@ -237,7 +237,7 @@ class ExerciseOneProgram:
 
         self.db_connection.commit()
                 
-                
+
     def fetch_data(self, table_name):
         query = "SELECT * FROM %s"
         self.cursor.execute(query % table_name)
@@ -254,7 +254,6 @@ class ExerciseOneProgram:
         print("Dropping table %s..." % table_name)
         query = "DROP TABLE IF EXISTS %s"
         self.cursor.execute(query % table_name)
-        self.db_connection.commit()
 
     def show_tables(self):
         # self.cursor.execute("SELECT * FROM USER")
@@ -283,7 +282,8 @@ def main():
         # Check that the table is dropped
         program.show_tables()
         
-        program.drop_table(table_name="TRACKPOINT")
+        
+        # program.drop_table(table_name="TRACKPOINT")
     
     except Exception as e:
         print("ERROR: Failed to use database:", e)
