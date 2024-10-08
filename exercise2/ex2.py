@@ -54,7 +54,7 @@ class ExerciseOneProgram:
 
         
     data_path = os.getcwd() + "/dataset/dataset"
-    
+    print(os.getcwd())  
     
     def insert_data_user(self):
         folder_names = []
@@ -265,25 +265,22 @@ class ExerciseOneProgram:
 def main():
     program = None
     try:
-        program = ExerciseOneProgram()  
+        # program = ExerciseOneProgram()  
 
-        program.show_tables()
-        program.drop_table(table_name="TRACKPOINT")
-        program.drop_table(table_name="ACTIVITY")
-        program.drop_table(table_name="USER")   
-
-        program.create_tables()
-        program.insert_data_user()
-        program.insert_data_activity()
-        program.insert_data_trackpoint()
-        # _ = program.fetch_data(table_name="USER")
-        _ = program.fetch_data(table_name="TRACKPOINT")
-        # program.drop_table(table_name="User")
-        # Check that the table is dropped
-        program.show_tables()
-        
-        
+        # program.show_tables()
         # program.drop_table(table_name="TRACKPOINT")
+        # program.drop_table(table_name="ACTIVITY")
+        # program.drop_table(table_name="USER")   
+
+        # program.create_tables()
+        # program.insert_data_user()
+        # program.insert_data_activity()
+        # program.insert_data_trackpoint()
+        # _ = program.fetch_data(table_name="TRACKPOINT")
+        # # Check that the table is dropped
+        # program.show_tables()
+        
+        
     
     except Exception as e:
         print("ERROR: Failed to use database:", e)
@@ -292,4 +289,4 @@ def main():
             program.connection.close_connection()
 
 if __name__ == "__main__":
-    main()
+    #main()
