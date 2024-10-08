@@ -26,9 +26,7 @@ class QueryProgram:
         trackpoint_query = "SELECT COUNT(*) FROM TRACKPOINT"
         self.cursor.execute(trackpoint_query)
         trackpoint_count = self.cursor.fetchone()[0]
-        
-        """SHOULD WE ALSO PRINT EEACH RESULT FOR REPORT?? OR DO IT TOGETHER LATER?"""
-        
+                
         print(f"{'Category':<15} {'Count':<10}")
         print(f"{'-'*25}")
         print(f"{'Users':<15} {user_count:<10}")
@@ -73,7 +71,7 @@ class QueryProgram:
         self.cursor.execute(query)
         results = self.cursor.fetchall()
 
-        print(tabulate.tabulate(results, headers=["User ID", "Activity Count"]))
+        print(tabulate(results, headers=["User ID", "Activity Count"]))
         
         return results
 
@@ -89,8 +87,6 @@ class QueryProgram:
         
         self.cursor.execute(query)
         results = self.cursor.fetchall()
-
-        # print([results[i][0] for i in range(len(results))])
         
         return [result[0] for result in results]  # Return a list of user IDs
 
@@ -112,7 +108,7 @@ class QueryProgram:
         self.cursor.execute(query)
         results = self.cursor.fetchall()
         
-        print(tabulate.tabulate(results, headers=["Transportation Mode", "Activity Count"]))
+        print(tabulate(results, headers=["Transportation Mode", "Activity Count"]))
         return results
 
     def year(self):
@@ -167,14 +163,16 @@ class QueryProgram:
         
         query = """
         SELECT t1.lat, t1.lon, t2.lat, t2.lon
-        FROM TrackPoint t1
-        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
-        JOIN Activity a ON t1.activity_id = a.id
+        FROM TRACKPOINT t1
+        JOIN TRACKPOINT t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        JOIN ACTIVITY a ON t1.activity_id = a.id
         WHERE a.user_id = 112
         AND a.transportation_mode = 'walk'
         AND YEAR(a.start_date_time) = 2008
         ORDER BY t1.activity_id, t1.id
         """
+        #Using activity_id to ensure only points from same activity are used
+        #using id+1 to get the next point in the same activity, to get consecutive points
         
         self.cursor.execute(query)
         results = self.cursor.fetchall()
@@ -185,6 +183,8 @@ class QueryProgram:
             point2 = (lat2, lon2)
             distance = haversine(point1, point2, unit=Unit.KILOMETERS)
             total_distance += distance
+        
+        print(f"Total distance walked by user 112 in 2008: {total_distance:.2f} km")
         
         return total_distance
         
@@ -300,39 +300,42 @@ def main():
     try:
         program = QueryProgram()  
 
-        # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
-        # print("-"*15)
-        # program.howMany()
-        # print(" ")
-        # print("2: Average number of activities per user")
-        # print("-"*15)
-        # program.averageActivities()
-        # print(" ")
-        # print("3: The top 20 users with the most activities")
-        # print("-"*15)
-        # program.top20()
-        # print(" ")
-        # print("4: Users who have taken a taxi")
-        # print("-"*15)
-        # print(program.taxi())
-        # print(" ")
-        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        # print("-"*15)
-        # program.transporationModes()
-        # print(" ")
-        # print("6: Year with the most activities and most recorded hours")
-        # program.year()
-        # print(" ")
-        # print("4: Users who have taken a taxi")
-        # print("-"*15)
-        # print(program.taxi())
-        # print(" ")
-        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        # print("-"*15)
-        # program.transporationModes()
-        # print(" ")
+        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        print("-"*15)
+        program.howMany()
+        print(" ")
+        print("2: Average number of activities per user")
+        print("-"*15)
+        program.averageActivities()
+        print(" ")
+        print("3: The top 20 users with the most activities")
+        print("-"*15)
+        program.top20()
+        print(" ")
+        print("4: Users who have taken a taxi")
+        print("-"*15)
+        print(program.taxi())
+        print(" ")
+        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        print("-"*15)
+        program.transporationModes()
+        print(" ")
         print("6: Year with the most activities and most recorded hours")
         program.year()
+        print(" ")
+        print("4: Users who have taken a taxi")
+        print("-"*15)
+        print(program.taxi())
+        print(" ")
+        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        print("-"*15)
+        program.transporationModes()
+        print(" ")
+        print("6: Year with the most activities and most recorded hours")
+        program.year()
+        print("-"*15)
+        print("7: Total distance walked by user 112 in 2008")
+        program.distance2008()
         print("-"*15)
         
         
