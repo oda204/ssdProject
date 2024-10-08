@@ -357,8 +357,26 @@ class QueryProgram:
     Some users may have the same number of activities tagged with e.g.
     walk and car. In this case it is up to you to decide which transportation
     mode to include in your answer (choose one).
-    ○ Do not count the rows where the mode is null"""
-        pass
+    Do not count the rows where the mode is null"""
+        query = """
+        SELECT user_id, 
+            SUBSTRING_INDEX(GROUP_CONCAT(transportation_mode ORDER BY mode_count DESC, transportation_mode ASC), ',', 1) AS most_used_transportation_mode
+        FROM (
+            SELECT user_id, transportation_mode, COUNT(*) as mode_count
+            FROM ACTIVIT
+            WHERE transportation_mode IS NOT NULL
+            GROUP BY user_id, transportation_mode
+        ) mode_counts
+        GROUP BY user_id
+        ORDER BY user_id
+        """
+
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+
+        headers = ["User ID", "Most Used Transportation Mode"]
+        print(tabulate(results, headers=headers, tablefmt="grid"))
+        print("Number of users with registered transportation_mode:", len(results))
 
 
 
@@ -416,6 +434,11 @@ def main():
         print("10: Find the users who have tracked an activity in the Forbidden City of Beijing ")
         print("-"*15)
         program.forbiddenCity()
+        print(" ")
+        
+        print("11: Users who have registered transportation_mode and their most used transportation_mode")
+        print("-"*15)
+        program.usersTransportMode()
         print(" ")
         
         
