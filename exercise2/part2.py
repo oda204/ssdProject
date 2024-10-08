@@ -198,46 +198,51 @@ class QueryProgram:
         USE HAVERSINE PACKAGE for calculating distance
         could use Tabulate for printing tables"""
         
-        query = """
-        SELECT a.user_id, t1.lat, t1.lon, t1.altitude, t2.lat, t2.lon, t2.altitude
-        FROM TrackPoint t1
-        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
-        JOIN Activity a ON t1.activity_id = a.id
-        WHERE t1.altitude != -777 AND t2.altitude != -777
-        ORDER BY a.user_id, t1.activity_id, t1.id
+        # query = """
+        # SELECT a.user_id, t1.lat, t1.lon, t1.altitude, t2.lat, t2.lon, t2.altitude
+        # FROM TrackPoint t1
+        # JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        # JOIN Activity a ON t1.activity_id = a.id
+        # WHERE t1.altitude != -777 AND t2.altitude != -777
+        # ORDER BY a.user_id, t1.activity_id, t1.id
+        # """
+
+        activities = """
+        SELECT id as activity_id, user_id
+        FROM ACTIVITY
         """
+
+        self.cursor.execute(activities)
+        activities = self.cursor.fetchall()
+
+        user_altitude = dict()
+
+        for i in range(0, 182):
+            user_altitude[i] = 0
         
-        """MÅ VURDERE HVORDAN VI SKAL REGNE UT AV DETTE - 
-        skal man kun bruke starten og slutten? eller det høyeste og laveste punktet? 
-        SKRIV ANTAGELSER I REPORT
-        """
-    
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
-        
-        user_altitude_gain = defaultdict(float)
-        
-        for user_id, lat1, lon1, alt1, lat2, lon2, alt2 in results:
-            # Calculate horizontal distance
-            point1 = (lat1, lon1)
-            point2 = (lat2, lon2)
-            horizontal_distance = haversine(point1, point2, unit=Unit.METERS)
+        for i in range(len(activities)):
+            activity, user = activities[i][0], activities[i][1]
+            altitude_gain = 0
             
-            # Calculate altitude difference
-            altitude_diff = alt2 - alt1
-            
-            # Only count positive altitude gains
-            """SKAL VI KUN REGNE MED POSITIVE?"""
-            if altitude_diff > 0:
-                # Use Pythagorean theorem to calculate actual distance traveled
-                """SYNES VI DET VIRKER FORNUFTIG Å BRUKE PYTHAGORAS HER?"""
-                actual_distance = (horizontal_distance**2 + altitude_diff**2)**0.5
-                user_altitude_gain[user_id] += altitude_diff
+            trackpoints_query = f"""
+            SELECT altitude 
+            FROM TRACKPOINT
+            WHERE activity_id ={activity} AND altitude > -777
+            ORDER BY date_time ASC
+            """
+            self.cursor.execute(trackpoints_query)
+            trackpoints = self.cursor.fetchall()
+
+            for i in range(1, len(trackpoints)):
+                gain = trackpoints[i][0] - trackpoints[i-1][0]
+                if gain > 0:
+                    altitude_gain += gain
+
+            user_altitude[user] += altitude_gain
         
-        # Sort users by altitude gain and get top 20
-        top_20 = sorted(user_altitude_gain.items(), key=lambda x: x[1], reverse=True)[:20]
-        
-        return top_20
+        top_20_users = sorted(user_altitude.items(), key=lambda x:x[1], reverse=True)[:20]
+        print(top_20_users)
+        return top_20_users
         
         
     def invalid(self):
@@ -352,6 +357,9 @@ def main():
     try:
         program = QueryProgram()  
 
+        program.altitude()
+
+
         # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
         # print("-"*15)
         # program.howMany()
@@ -393,6 +401,7 @@ def main():
         print("9: Users with invalid activities")
         program.invalidSecondAttempt()
         print("-"*15)
+        print(" ")
         
         
     except Exception as e:
