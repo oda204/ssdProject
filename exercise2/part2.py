@@ -246,18 +246,16 @@ class QueryProgram:
         
         
     def invalid(self):
-        """9. Find all users who have invalid activities, and the number of invalid activities
-    per user
-    An invalid activity is defined as an activity with consecutive trackpoints
-    where the timestamps deviate with at least 5 minutes.
-
-    see tip for how to take advantage of datetime format in queriees . think there is functin to easily calcualte this
-    """
+        """9. Find all users who have invalid activities, and the number of invalid activities per user
+        An invalid activity is defined as an activity with consecutive trackpoints
+        where the timestamps deviate with at least 5 minutes.
+        see tip for how to take advantage of datetime format in queriees . think there is functin to easily calcualte this
+        """
         query = """
         SELECT a.user_id, a.id AS activity_id, t1.date_days, t2.date_days
-        FROM TrackPoint t1
-        JOIN TrackPoint t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
-        JOIN Activity a ON t1.activity_id = a.id
+        FROM TRACKPOINT t1
+        JOIN TRACKPOINT t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
+        JOIN ACTIVITY a ON t1.activity_id = a.id
         ORDER BY a.user_id, a.id, t1.id
         """
         
@@ -278,8 +276,62 @@ class QueryProgram:
         # Sort by number of invalid activities in descending order
         invalid_activities_list.sort(key=lambda x: x[1], reverse=True)
         
-        return invalid_activities_list
+        print(tabulate(invalid_activities_list, headers=["User ID", "Invalid Activities"]))
         
+        return invalid_activities_list
+    
+    def invalidSecondAttempt(self):
+        query = """
+            WITH consecutive_points AS (
+        SELECT 
+            a.user_id,
+            t.activity_id,
+            t.date_time,
+            LEAD(t.date_time) OVER (PARTITION BY t.activity_id ORDER BY t.date_time) AS next_date_time
+        FROM 
+            TRACKPOINT t
+        JOIN 
+            ACTIVITY a ON t.activity_id = a.id
+    ),
+    invalid_activities AS (
+        SELECT DISTINCT
+            user_id,
+            activity_id
+        FROM 
+            consecutive_points
+        WHERE 
+            TIMESTAMPDIFF(MINUTE, date_time, next_date_time) >= 5
+    )
+    SELECT 
+        user_id,
+        CASE 
+            WHEN COUNT(*) > 0 THEN 'Has Invalid Activities'
+            ELSE 'All Activities Valid'
+        END AS status
+    FROM 
+        invalid_activities
+    GROUP BY 
+        user_id
+
+    UNION
+
+    SELECT 
+        user_id,
+        'All Activities Valid' AS status
+    FROM 
+        ACTIVITY
+    WHERE 
+        user_id NOT IN (SELECT user_id FROM invalid_activities)
+    GROUP BY 
+        user_id
+        """
+        self.cursor.execute(query)
+        results = self.cursor.fetchall()
+        
+        if results:
+            print(tabulate(results, headers="keys", tablefmt="grid"))
+        else:
+            print("No results or an error occurred.")
 
     def forbiddenCity(self):
         """10. Find the users who have tracked an activity in the Forbidden City of Beijing. 
@@ -308,31 +360,46 @@ def main():
         program.altitude()
 
 
-        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
-        print("-"*15)
-        program.howMany()
-        print(" ")
-        print("2: Average number of activities per user")
-        print("-"*15)
-        program.averageActivities()
-        print(" ")
-        print("3: The top 20 users with the most activities")
-        print("-"*15)
-        program.top20()
-        print(" ")
-        print("4: Users who have taken a taxi")
-        print("-"*15)
-        print(program.taxi())
-        print(" ")
-        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        print("-"*15)
-        program.transporationModes()
-        print(" ")
-        print("6: Year with the most activities and most recorded hours")
-        program.year()
-        print("-"*15)
-        print("7: Total distance walked by user 112 in 2008")
-        program.distance2008()
+        # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        # print("-"*15)
+        # program.howMany()
+        # print(" ")
+        # print("2: Average number of activities per user")
+        # print("-"*15)
+        # program.averageActivities()
+        # print(" ")
+        # print("3: The top 20 users with the most activities")
+        # print("-"*15)
+        # program.top20()
+        # print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # print(program.taxi())
+        # print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
+        # print("6: Year with the most activities and most recorded hours")
+        # program.year()
+        # print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # print(program.taxi())
+        # print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
+        # print("6: Year with the most activities and most recorded hours")
+        # program.year()
+        # print("-"*15)
+        # print("7: Total distance walked by user 112 in 2008")
+        # program.distance2008()
+        # print("-"*15)
+        #TASK 8
+        print("9: Users with invalid activities")
+        program.invalidSecondAttempt()
         print("-"*15)
         print(" ")
         
