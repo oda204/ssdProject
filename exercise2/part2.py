@@ -1,6 +1,6 @@
 from DbConnector import DbConnector
 from haversine import haversine, Unit
-import tabulate
+from tabulate import tabulate
 from collections import defaultdict
 
 class QueryProgram:
@@ -122,7 +122,7 @@ class QueryProgram:
         b) Is this also the year with most recorded hours?
         """
         
-        query_activities = """
+        query = """
         SELECT YEAR(start_date_time) AS year, 
             COUNT(*) AS activity_count,
             SUM(TIMESTAMPDIFF(HOUR, start_date_time, end_date_time)) AS total_hours
@@ -130,21 +130,34 @@ class QueryProgram:
         GROUP BY YEAR(start_date_time)
         ORDER BY activity_count DESC, total_hours DESC
         """
-        
-        self.cursor.execute(query_activities)
+        #Run the query
+        self.cursor.execute(query)
         results = self.cursor.fetchall()
         
+        # Check if there are any results to avoid errors below
         if not results:
             return None, None, False
         
+        # From first line, get year with most activities, total activities and total hours
         year_most_activities, max_activities, hours_most_activities = results[0]
         
-        # Check if the year with most activities is also the year with most hours
-        year_most_hours = max(results, key=lambda x: x[2])[0]
+        # Find year with most hours and save all its data
+        year_most_hours, activities_most_hours, max_hours = max(results, key=lambda x: x[2])
         
+        #Check if the year with most activities is the same as the year with most hours
         is_same_year = year_most_activities == year_most_hours
         
-        """GOOD CHANCE THAT THIS NEEDS TO BE WORKED FURTHER ON TO ACTUALLY WORK"""
+        #Save the data in a table so it can be printed pretty
+        data = [
+        ["Most Activities", year_most_activities, max_activities, hours_most_activities],
+        ["Most Hours", year_most_hours, activities_most_hours, max_hours]
+        ]
+
+        headers = ["Category", "Year", "Activities", "Hours"]
+
+        #Print out results
+        print(tabulate(data, headers=headers, tablefmt="grid"))
+        print(f"{'Yes' if is_same_year else 'No'}, the year with the most activities is {'the same as' if is_same_year else 'not the same as'} the year with the most hours.")        
         
         return year_most_activities, year_most_hours, is_same_year
         
@@ -287,26 +300,41 @@ def main():
     try:
         program = QueryProgram()  
 
-        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        # print("-"*15)
+        # program.howMany()
+        # print(" ")
+        # print("2: Average number of activities per user")
+        # print("-"*15)
+        # program.averageActivities()
+        # print(" ")
+        # print("3: The top 20 users with the most activities")
+        # print("-"*15)
+        # program.top20()
+        # print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # print(program.taxi())
+        # print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
+        # print("6: Year with the most activities and most recorded hours")
+        # program.year()
+        # print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # print(program.taxi())
+        # print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
+        print("6: Year with the most activities and most recorded hours")
+        program.year()
         print("-"*15)
-        program.howMany()
-        print(" ")
-        print("2: Average number of activities per user")
-        print("-"*15)
-        program.averageActivities()
-        print(" ")
-        print("3: The top 20 users with the most activities")
-        print("-"*15)
-        program.top20()
-        print(" ")
-        print("4: Users who have taken a taxi")
-        print("-"*15)
-        print(program.taxi())
-        print(" ")
-        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        print("-"*15)
-        program.transporationModes()
-        print(" ")
+        
         
     except Exception as e:
         print("ERROR: Failed to use database:", e)
