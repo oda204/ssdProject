@@ -318,7 +318,7 @@ class QueryProgram:
             SUBSTRING_INDEX(GROUP_CONCAT(transportation_mode ORDER BY mode_count DESC, transportation_mode ASC), ',', 1) AS most_used_transportation_mode
         FROM (
             SELECT user_id, transportation_mode, COUNT(*) as mode_count
-            FROM ACTIVIT
+            FROM ACTIVITY
             WHERE transportation_mode IS NOT NULL
             GROUP BY user_id, transportation_mode
         ) mode_counts
