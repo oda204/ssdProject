@@ -11,8 +11,10 @@ class QueryProgram:
         self.cursor = self.connection.cursor
     
     def howMany(self):
-        """1. How many users, activities and trackpoints are there in the dataset (after it is
-        inserted into the database)."""
+        """
+        1. How many users, activities and trackpoints are there in the dataset (after it is
+        inserted into the database).
+        """
         # Count users
         user_query = "SELECT COUNT(*) FROM USER"
         self.cursor.execute(user_query)
@@ -239,14 +241,16 @@ class QueryProgram:
         headers = ["User", "Total Meters gained"]
         print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
         return top_20_users
-        
+
         
     def invalid(self):
-        """9. Find all users who have invalid activities, and the number of invalid activities per user
+        """
+        9. Find all users who have invalid activities, and the number of invalid activities per user
         An invalid activity is defined as an activity with consecutive trackpoints
         where the timestamps deviate with at least 5 minutes.
         see tip for how to take advantage of datetime format in queriees . think there is functin to easily calcualte this
         """
+
         activities = """
         SELECT id as activity_id, user_id
         FROM ACTIVITY
@@ -276,12 +280,30 @@ class QueryProgram:
                 if (trackpoints[i][0] - trackpoints[i-1][0]) > timedelta(minutes = 5):
                   no_invalid_activities[user] += 1
                   break
-            
-        table_data = [[user, count] for user, count in no_invalid_activities.items()]
+        # Sort users by the number of invalid activities in descending order
+        no_invalid_activities = sorted(no_invalid_activities.items(), key=lambda x: x[1], reverse=True)
+
+        # Prepare and display results
+        nr_of_user_invalid_activities = 0
+        users_without_invalid_activities = []
+        for user, count in no_invalid_activities:
+            if count > 0:
+                nr_of_user_invalid_activities += 1
+            else:
+                users_without_invalid_activities.append(user)
+                
+        top_20_users_invalid_activities = no_invalid_activities[:20]
+
+        print("Number of users with invalid activities: ", nr_of_user_invalid_activities)
+        print("Users without invalid activites: ", users_without_invalid_activities)
+        print("Total number of invalid activities: ", sum([count for _, count in no_invalid_activities]))
+        print(" ")
+        print("Top 20 users with the most invalid activities:")
+
         headers = ["User", "Number of Invalid Activities"]
-        print(tabulate(table_data, headers=headers, tablefmt="grid"))
+        print(tabulate(top_20_users_invalid_activities, headers=headers, tablefmt="grid"))
+
         return no_invalid_activities
-    
 
     def forbiddenCity(self):
         """
@@ -341,60 +363,60 @@ def main():
     try:
         program = QueryProgram()  
 
-        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
-        print("-"*15)
-        program.howMany()
-        print(" ")
+        # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        # print("-"*15)
+        # program.howMany()
+        # print(" ")
 
-        print("2: Average number of activities per user")
-        print("-"*15)
-        program.averageActivities()
-        print(" ")
+        # print("2: Average number of activities per user")
+        # print("-"*15)
+        # program.averageActivities()
+        # print(" ")
 
-        print("3: The top 20 users with the most activities")
-        print("-"*15)
-        program.top20()
-        print(" ")
+        # print("3: The top 20 users with the most activities")
+        # print("-"*15)
+        # program.top20()
+        # print(" ")
 
-        print("4: Users who have taken a taxi")
-        print("-"*15)
-        print(program.taxi())
-        print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # print(program.taxi())
+        # print(" ")
 
-        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        print("-"*15)
-        program.transporationModes()
-        print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
 
-        print("6: Year with the most activities and most recorded hours")
-        print("-"*15)
-        program.year()
-        print(" ")
+        # print("6: Year with the most activities and most recorded hours")
+        # print("-"*15)
+        # program.year()
+        # print(" ")
         
-        print("7: Total distance walked by user 112 in 2008")
-        print("-"*15)
-        program.distance2008()
-        print(" ")
+        # print("7: Total distance walked by user 112 in 2008")
+        # print("-"*15)
+        # program.distance2008()
+        # print(" ")
 
-        print("8: The 20 users who have gained the most altitude meters")
-        print("-"*15)
-        program.altitude()
-        print(" ")
+        # print("8: The 20 users who have gained the most altitude meters")
+        # print("-"*15)
+        # program.altitude()
+        # print(" ")
 
         print("9: Find all users who have invalid activities, and the number of invalid activities per user")
         print("-"*15)
         program.invalid()
         print(" ")
 
-        print("10: Find the users who have tracked an activity in the Forbidden City of Beijing ")
-        print("-"*15)
-        program.forbiddenCity()
-        print(" ")
+        # print("10: Find the users who have tracked an activity in the Forbidden City of Beijing ")
+        # print("-"*15)
+        # program.forbiddenCity()
+        # print(" ")
         
-        print("11: Users who have registered transportation_mode and their most used transportation_mode")
-        print("-"*15)
-        program.usersTransportMode()
-        print(" ")
+        # print("11: Users who have registered transportation_mode and their most used transportation_mode")
+        # print("-"*15)
+        # program.usersTransportMode()
+        # print(" ")
         
         
     except Exception as e:
