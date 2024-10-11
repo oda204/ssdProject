@@ -327,14 +327,16 @@ class QueryProgram:
 
 
     def usersTransportMode(self):
-        """11. Find all users who have registered transportation_mode and their most used
-    transportation_mode.
-    The answer should be on format (user_id,
-    most_used_transportation_mode) sorted on user_id.
-    Some users may have the same number of activities tagged with e.g.
-    walk and car. In this case it is up to you to decide which transportation
-    mode to include in your answer (choose one).
-    Do not count the rows where the mode is null"""
+        """
+        11. Find all users who have registered transportation_mode and their most used
+        transportation_mode.
+        The answer should be on format (user_id,
+        most_used_transportation_mode) sorted on user_id.
+        Some users may have the same number of activities tagged with e.g.
+        walk and car. In this case it is up to you to decide which transportation
+        mode to include in your answer (choose one).
+        Do not count the rows where the mode is null
+        """
         query = """
         SELECT user_id, 
             SUBSTRING_INDEX(GROUP_CONCAT(transportation_mode ORDER BY mode_count DESC, transportation_mode ASC), ',', 1) AS most_used_transportation_mode
