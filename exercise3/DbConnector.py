@@ -1,9 +1,15 @@
 from pymongo import MongoClient, version
 
-"""Remember to keep the MongoDB-server running.
-Think need to ssh into the server and run the command: sudo mongod --bind_ip_all
+"""Before start running need to start the server in a separate terminal.
+Go into VM ssh
+starts the server: sudo systemctl start mongod (sudo mongod --bind_ip_all)
+checks status, look for active: sudo systemctl status mongod
+
 This server must be running whenever you are working with
-the task. Only one of the group members has to run the server at a time."""
+the task. Only one of the group members has to run the server at a time.
+
+to stop it
+sudo service mongod stop"""
 
 class DbConnector:
     """
