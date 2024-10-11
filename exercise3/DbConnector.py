@@ -1,5 +1,9 @@
 from pymongo import MongoClient, version
 
+"""Remember to keep the MongoDB-server running.
+Think need to ssh into the server and run the command: sudo mongod --bind_ip_all
+This server must be running whenever you are working with
+the task. Only one of the group members has to run the server at a time."""
 
 class DbConnector:
     """
@@ -13,10 +17,10 @@ class DbConnector:
     """
 
     def __init__(self,
-                 DATABASE='DATABASE_NAME',
+                 DATABASE='my_db',
                  HOST="tdt4225-xx.idi.ntnu.no",
-                 USER="TEST_USER",
-                 PASSWORD="test123"):
+                 USER="user_15",
+                 PASSWORD="vierbest"):
         uri = "mongodb://%s:%s@%s/%s" % (USER, PASSWORD, HOST, DATABASE)
         # Connect to the databases
         try:
