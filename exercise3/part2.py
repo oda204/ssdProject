@@ -147,49 +147,91 @@ class QueryProgram:
         a) Find the year with the most activities.
         b) Is this also the year with most recorded hours?
         """
-        
-        query = """
-        SELECT YEAR(start_date_time) AS year, 
-            COUNT(*) AS activity_count,
-            SUM(TIMESTAMPDIFF(HOUR, start_date_time, end_date_time)) AS total_hours
-        FROM ACTIVITY
-        GROUP BY YEAR(start_date_time)
-        ORDER BY activity_count DESC, total_hours DESC
-        """
-        #Run the query
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
-        
-        # Check if there are any results to avoid errors below
-        if not results:
-            return None, None, False
-        
-        # From first line, get year with most activities, total activities and total hours
-        year_most_activities, max_activities, hours_most_activities = results[0]
-        
-        # Find year with most hours and save all its data
-        year_most_hours, activities_most_hours, max_hours = max(results, key=lambda x: x[2])
-        
-        #Check if the year with most activities is the same as the year with most hours
-        is_same_year = year_most_activities == year_most_hours
-        
-        #Save the data in a table so it can be printed pretty
-        data = [
-        ["Most Activities", year_most_activities, max_activities, hours_most_activities],
-        ["Most Hours", year_most_hours, activities_most_hours, max_hours]
+
+        pipeline = [
+            {
+                '$addFields': {
+                    'year': { '$year': '$start_time' }  # Extract year from start_time
+                }
+            },
+            {
+                '$group': {
+                    '_id': '$year',  # Group by year
+                    'activity_count': { '$sum': 1 },  # Count the number of activities
+                    'total_hours': {
+                        '$sum': {
+                            '$divide': [
+                                { '$subtract': ['$end_time', '$start_time'] },  # Calculate duration for each activity
+                                3600000  # Convert milliseconds to hours
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                '$sort': { 'activity_count': -1 }  # Optional: Sort by activity count in descending order
+            },
+            {
+                '$project': {
+                    '_id': 0,  # Exclude _id
+                    'year': '$_id',  # Rename _id to year
+                    'activity_count': 1,  # Keep activity count
+                    'total_hours': 1  # Keep total hours
+                }
+            },
+            {
+                '$sort': { 'year': 1 }  # Optional: Sort by year in ascending order
+            }
         ]
 
-        headers = ["Category", "Year", "Activities", "Hours"]
+        results = self.db.activity.aggregate(pipeline)
 
-        #Print out results
-        print(tabulate(data, headers=headers, tablefmt="grid"))
-        print(f"{'Yes' if is_same_year else 'No'}, the year with the most activities is {'the same as' if is_same_year else 'not the same as'} the year with the most hours.")        
-        
-        return year_most_activities, year_most_hours, is_same_year
-        
+        # Print results
+        for result in results:
+            pprint(result)
+
 
     def distance2008(self):
-        """7. Find the total distance (in km) walked in 2008, by user with id=112."""
+        """
+        7. Find the total distance (in km) walked in 2008, by user with id=112.
+        """
+        # THIS CODE WILL NOT WORK; HAVE TO CALCULATE USING HAVERSINE!
+        pipeline = [
+            {
+                '$match': {
+                    'user_id': '112',  # Match user with id=112
+                    'transportation_mode': 'walk'  # Only consider activities with transportation mode as 'walk'
+                }
+            },
+            {
+                '$addFields': {
+                    'year': { '$year': '$start_time' }  # Extract the year from start_time
+                }
+            },
+            {
+                '$match': {
+                    'year': 2008  # Only consider activities from the year 2008
+                }
+            },
+            {
+                '$group': {
+                    '_id': None,  # We don't need to group by a specific field
+                    'total_distance': { '$sum': { '$divide': ['$distance', 1000] } }  # Sum distances and convert meters to km
+                }
+            },
+            {
+                '$project': {
+                    '_id': 0,  # Exclude _id
+                    'total_distance_km': '$total_distance'  # Rename total_distance to total_distance_km
+                }
+            }
+        ]
+
+        results = list(self.db.activity.aggregate(pipeline))
+
+        # Print results
+        pprint(results)
+
         
         query = """
         SELECT t1.lat, t1.lon, t2.lat, t2.lon
