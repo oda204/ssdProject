@@ -265,7 +265,7 @@ class ExerciseOneProgram:
 def main():
     program = None
     try:
-        # program = ExerciseOneProgram()  
+        program = ExerciseOneProgram()  
 
         # program.show_tables()
         # program.drop_table(table_name="TRACKPOINT")
@@ -289,4 +289,4 @@ def main():
             program.connection.close_connection()
 
 if __name__ == "__main__":
-    #main()
+    main()
