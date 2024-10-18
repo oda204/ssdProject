@@ -48,6 +48,7 @@ class InsertProgram:
         folder_files_dict.pop("Data")
 
         activity_id = 0
+        print(folder_files_dict.keys())
 
         for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
             
