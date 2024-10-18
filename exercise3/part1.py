@@ -1,5 +1,7 @@
 from pprint import pprint 
 from DbConnector import DbConnector
+import os
+from datetime import datetime
 
 
 class InsertProgram:
@@ -7,6 +9,7 @@ class InsertProgram:
         self.connection = DbConnector()
         self.client = self.connection.client
         self.db = self.connection.db
+        self.data_path = os.getcwd() + "/dataset/dataset"
 
     def create_coll(self, collection_name):
         collection = self.db.create_collection(collection_name)    
@@ -99,18 +102,18 @@ class InsertProgram:
                         continue
 
                     user_id = str(key)
-                    activites.append(activity_id) # add the activity id to the list of activities for the user
+                    activities.append(activity_id) # add the activity id to the list of activities for the user
 
                     # insert into MongoDB
                     activity_doc = {
-                        "_id": acitivity_id, # int, incremented
+                        "_id": activity_id, # int, incremented
                         "transportation_mode": transportation_mode, # str or null/None
                         "start_date_time": start_time, # datetime object
                         "end_date_time": end_time, # datetime object
                         "user_id": user_id # str
                     }
                     print(activity_doc)
-                    db.activity.insert_one(activity_doc)
+                    self.db.activity.insert_one(activity_doc)
                 
                     # increment the unique activity id
                     activity_id += 1
@@ -122,7 +125,7 @@ class InsertProgram:
                 "activities": activities # list of activity ids
             }
             print(user_doc)
-            db.user.insert_one(user_doc)
+            self.db.user.insert_one(user_doc)
         
 
     def insert_documents(self, collection_name):
@@ -160,8 +163,11 @@ class InsertProgram:
         
 
     def drop_coll(self, collection_name):
-        collection = self.db[collection_name]
-        collection.drop()
+        try:
+            collection = self.db[collection_name]
+            collection.drop()
+        except:
+            print("Collection does not exist")
 
         
     def show_coll(self):
@@ -174,17 +180,25 @@ def main():
     program = None
     try:
         program = InsertProgram()
-        # program.create_coll(collection_name="user")
-        # program.create_coll(collection_name="activity")
-        # program.create_coll(collection_name="trackpoint")
+
+        program.drop_coll(collection_name="user")
+        program.drop_coll(collection_name="activity")
+        program.drop_coll(collection_name="trackpoint")
+
+        program.create_coll(collection_name="user")
+        program.create_coll(collection_name="activity")
+        program.create_coll(collection_name="trackpoint")
         
         program.show_coll()
+        program.insert_user_activity()
 
 
 
         # program.insert_documents(collection_name="user")
         # program.fetch_documents(collection_name="user")
-        # program.drop_coll(collection_name="user")
+        program.drop_coll(collection_name="user")
+        program.drop_coll(collection_name="activity")
+        program.drop_coll(collection_name="trackpoint")
         # program.drop_coll(collection_name='users')
         # Check that the table is dropped
         program.show_coll()
