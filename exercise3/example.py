@@ -1,11 +1,9 @@
 from pprint import pprint 
-from DbConnector import DbConnector
-
+from cloud_connector import CloudConnector
 
 class ExampleProgram:
-
     def __init__(self):
-        self.connection = DbConnector()
+        self.connection = CloudConnector()
         self.client = self.connection.client
         self.db = self.connection.db
 
