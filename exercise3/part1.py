@@ -1,19 +1,25 @@
 from pprint import pprint 
-from DbConnector import DbConnector
+from cloud_connector import CloudConnector
 import os
 from datetime import datetime
 
+"""Remember to cd exercise3 before running the program. 
+You need to be inside the exercise3 folder to run the program so that the files work correctly.
+"""
+
+class ActivityTooLongError(Exception):
+    pass
 
 class InsertProgram:
     def __init__(self):
-        self.connection = DbConnector()
+        self.connection = CloudConnector()
         self.client = self.connection.client
         self.db = self.connection.db
         self.data_path = os.getcwd() + "/dataset/dataset"
 
     def create_coll(self, collection_name):
         collection = self.db.create_collection(collection_name)    
-        print('Created collection: ', collection)
+        print('Created collection: ', collection_name)
 
     def get_folder_and_labels_dict(self):
         """
@@ -22,11 +28,13 @@ class InsertProgram:
         """
         folder_files_dict = {} # a dictionary where keys are user ids and values are lists of activity files
         has_labels_dict = {} # a dictionary where keys are user ids and values are boolean values indicating whether the user has labels.txt file
-
+  
         # Traverse the main directory and its immediate subdirectories
         for root, dirs, files in os.walk(self.data_path + "/Data"):
             # Collect file names in the main directory (root level)
+            print("dirs, number of users", len(dirs))
             folder_files_dict[os.path.basename(root)] = files
+            print("files", files)
             
             # Now, for each immediate subdirectory, gather file names
             for folder in dirs:
@@ -43,7 +51,7 @@ class InsertProgram:
         
             break
         
-        folder_files_dict.pop("Data")
+        folder_files_dict.pop("Data") # remove the Data folder from the dictionary
 
         return folder_files_dict, has_labels_dict
     
@@ -68,35 +76,65 @@ class InsertProgram:
         return user_label_dict
     
     def get_activity_data(self, file_path, user_label_dict):
-
         with open(file_path, "r") as file:
             lines = file.readlines()
 
-        if len(lines) <= 2506: # if the activity is too long, skip it
-            # handling dates and times
-            start_day = lines[6].split(",")[-2].replace('/', '-').strip()
-            start_time = lines[6].split(",")[-1].strip()
+        if len(lines) > 2506:  # if the activity is too long, raise a custom exception
+            raise ActivityTooLongError(f"Activity in {file_path} has more than 2500 lines")
 
-            end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
-            end_time = lines[-1].split(",")[-1].strip()
+        # handling dates and times
+        start_day = lines[6].split(",")[-2].replace('/', '-').strip()
+        start_time = lines[6].split(",")[-1].strip()
 
-            start_datetime_str = f"{start_day} {start_time}"
-            end_datetime_str = f"{end_day} {end_time}"
+        end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
+        end_time = lines[-1].split(",")[-1].strip()
 
-            start_end = start_datetime_str + ", " + end_datetime_str # string to check if the activity has a label
+        start_datetime_str = f"{start_day} {start_time}"
+        end_datetime_str = f"{end_day} {end_time}"
 
-            if start_end in user_label_dict.keys():
-                transportation_mode = user_label_dict[start_end]
-            else:
-                transportation_mode = None
+        start_end = start_datetime_str + ", " + end_datetime_str  # string to check if the activity has a label
 
-            # Convert to a datetime object for insertion into the database
-            start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
-            end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
+        if start_end in user_label_dict.keys():
+            transportation_mode = user_label_dict[start_end]
+        else:
+            transportation_mode = None
+
+        # Convert to a datetime object for insertion into the database
+        start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
+        end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
+
+        return start_time, end_time, transportation_mode, lines
+    
+    # def get_activity_data(self, file_path, user_label_dict):
+
+    #     with open(file_path, "r") as file:
+    #         lines = file.readlines()
+
+    #     if len(lines) <= 2506: # if the activity is too long, skip it
+    #         # handling dates and times
+    #         start_day = lines[6].split(",")[-2].replace('/', '-').strip()
+    #         start_time = lines[6].split(",")[-1].strip()
+
+    #         end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
+    #         end_time = lines[-1].split(",")[-1].strip()
+
+    #         start_datetime_str = f"{start_day} {start_time}"
+    #         end_datetime_str = f"{end_day} {end_time}"
+
+    #         start_end = start_datetime_str + ", " + end_datetime_str # string to check if the activity has a label
+
+    #         if start_end in user_label_dict.keys():
+    #             transportation_mode = user_label_dict[start_end]
+    #         else:
+    #             transportation_mode = None
+
+    #         # Convert to a datetime object for insertion into the database
+    #         start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
+    #         end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
         
-            return start_time, end_time, transportation_mode, lines
+    #         return start_time, end_time, transportation_mode, lines
 
-        return
+        
 
     def get_trackpoint_data(self, lines, activity_id, trackpoint_counter):
         """
@@ -128,7 +166,7 @@ class InsertProgram:
                 "date_time": date_time
             }
 
-            print(f"Trackpoint: {trackpoint}")
+            #print(f"Trackpoint: {trackpoint}")
             all_trackpoints.append(trackpoint)
             trackpoint_counter += 1
 
@@ -146,7 +184,6 @@ class InsertProgram:
 
         activity_id = 0
         trackpoint_counter = 0
-        print(folder_files_dict.keys())
 
         for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
             
@@ -159,14 +196,14 @@ class InsertProgram:
 
                 try: # get activity data
                     start_time, end_time, transportation_mode, lines = self.get_activity_data(file_path, user_label_dict)
-                except ValueError:
+                except ActivityTooLongError:
                     print("Skipping activity data for file that is too long: ", key, file_name)
                     continue
             
                 # if the activity is less than a minute or the year is wrong, we will disregard it
                 if (end_time - start_time).total_seconds() < 60 or start_time.year < 2007 or start_time.year > 2012:
                     continue
-
+                
                 user_id = str(key)
                 activities.append(activity_id) # add the activity id to the list of activities for the user
 
@@ -178,16 +215,18 @@ class InsertProgram:
                     "end_date_time": end_time, # datetime object
                     "user_id": user_id # str
                 }
-                print(activity_doc)
+                
+                print("Adding user", activity_doc)
                 self.db.activity.insert_one(activity_doc)
 
                 all_trackpoints, trackpoint_counter = self.get_trackpoint_data(lines, activity_id, trackpoint_counter)
-            
-                # increment the unique activity id
-                activity_id += 1
+                print(f"Adding {len(all_trackpoints)} trackpoints to the {activity_id}")
 
                 # if the activity is not inserted, it will automatically have skipped the trackpoint data
                 self.db.trackpoint.insert_many(all_trackpoints) # insert all trackpoints for the activity
+                
+                # increment the unique activity id after all trackpoints are inserted and the activity is inserted
+                activity_id += 1
 
             # insert the user into the database
             user_doc = {
@@ -195,7 +234,7 @@ class InsertProgram:
                 "has_labels": has_labels_dict[key], # bool
                 "activities": activities # list of activity ids
             }
-            print(user_doc)
+            print("Adding user ", user_doc)
             self.db.user.insert_one(user_doc)
     
         
@@ -238,11 +277,11 @@ def main():
 
 
 
-        # program.insert_documents(collection_name="user")
-        # program.fetch_documents(collection_name="user")
-        program.drop_coll(collection_name="user")
-        program.drop_coll(collection_name="activity")
-        program.drop_coll(collection_name="trackpoint")
+        # # program.insert_documents(collection_name="user")
+        # # program.fetch_documents(collection_name="user")
+        # program.drop_coll(collection_name="user")
+        # program.drop_coll(collection_name="activity")
+        # program.drop_coll(collection_name="trackpoint")
         # program.drop_coll(collection_name='users')
         # Check that the table is dropped
         program.show_coll()
