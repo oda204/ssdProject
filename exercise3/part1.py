@@ -105,37 +105,7 @@ class InsertProgram:
 
         return start_time, end_time, transportation_mode, lines
     
-    # def get_activity_data(self, file_path, user_label_dict):
-
-    #     with open(file_path, "r") as file:
-    #         lines = file.readlines()
-
-    #     if len(lines) <= 2506: # if the activity is too long, skip it
-    #         # handling dates and times
-    #         start_day = lines[6].split(",")[-2].replace('/', '-').strip()
-    #         start_time = lines[6].split(",")[-1].strip()
-
-    #         end_day = lines[-1].split(",")[-2].replace('/', '-').strip()
-    #         end_time = lines[-1].split(",")[-1].strip()
-
-    #         start_datetime_str = f"{start_day} {start_time}"
-    #         end_datetime_str = f"{end_day} {end_time}"
-
-    #         start_end = start_datetime_str + ", " + end_datetime_str # string to check if the activity has a label
-
-    #         if start_end in user_label_dict.keys():
-    #             transportation_mode = user_label_dict[start_end]
-    #         else:
-    #             transportation_mode = None
-
-    #         # Convert to a datetime object for insertion into the database
-    #         start_time = datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M:%S')
-    #         end_time = datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M:%S')
         
-    #         return start_time, end_time, transportation_mode, lines
-
-        
-
     def get_trackpoint_data(self, lines, activity_id, trackpoint_counter):
         """
         Returns a list of all trackpoint documents for a given activity.
@@ -169,7 +139,6 @@ class InsertProgram:
             #print(f"Trackpoint: {trackpoint}")
             all_trackpoints.append(trackpoint)
             trackpoint_counter += 1
-            break #TEMPORARY BREAK FOR TESTING
 
         return all_trackpoints, trackpoint_counter
 
@@ -183,18 +152,12 @@ class InsertProgram:
         """
         folder_files_dict, has_labels_dict = self.get_folder_and_labels_dict()
 
-        keys = list(folder_files_dict.keys()) 
-        unique_keys = set(keys) # get unique keys, got duplicate key errors so this is for testing
-        print("Number of users: ", len(keys))
-        print("Number of unique users: ", len(unique_keys))
         activity_id = 0
         trackpoint_counter = 0
 
         for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
             #Define user_id as string, moved from inside the loop to avoid duplicate key errors
             user_id = str(key)
-            print("Key ", key)
-            print("Value ", value)
             user_label_dict = self.get_transportation_modes(user_id=key, has_labels_dict=has_labels_dict) # get the transportation modes for the user
             activities = [] # list of activities for the user
 
@@ -265,8 +228,12 @@ class InsertProgram:
     def show_coll(self):
         collections = self.client['test'].list_collection_names()
         print(collections)
-         
 
+    def show_collection_counts(self):
+        collections = ["user", "activity", "trackpoint"]
+        for collection_name in collections:
+            count = self.db[collection_name].count_documents({})
+            print(f"Number of documents in {collection_name} collection: {count}")
 
 def main():
     program = None
@@ -283,17 +250,8 @@ def main():
         
         program.show_coll()
         program.insert_data()
-
-
-
-        # # program.insert_documents(collection_name="user")
-        # # program.fetch_documents(collection_name="user")
-        # program.drop_coll(collection_name="user")
-        # program.drop_coll(collection_name="activity")
-        # program.drop_coll(collection_name="trackpoint")
-        # program.drop_coll(collection_name='users')
-        # Check that the table is dropped
-        program.show_coll()
+        program.show_collection_counts()
+        
     except Exception as e:
         print("ERROR: Failed to use database:", e)
     finally:
