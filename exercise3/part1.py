@@ -2,6 +2,7 @@ from pprint import pprint
 from cloud_connector import CloudConnector
 import os
 from datetime import datetime
+from bson import ObjectId
 
 """Remember to cd exercise3 before running the program. 
 You need to be inside the exercise3 folder to run the program so that the files work correctly.
@@ -32,10 +33,9 @@ class InsertProgram:
         # Traverse the main directory and its immediate subdirectories
         for root, dirs, files in os.walk(self.data_path + "/Data"):
             # Collect file names in the main directory (root level)
-            print("dirs, number of users", len(dirs))
+            print("Number of users found in files", len(dirs))
             folder_files_dict[os.path.basename(root)] = files
-            print("files", files)
-            
+                        
             # Now, for each immediate subdirectory, gather file names
             for folder in dirs:
                 folder_path = os.path.join(root, folder)
@@ -169,6 +169,7 @@ class InsertProgram:
             #print(f"Trackpoint: {trackpoint}")
             all_trackpoints.append(trackpoint)
             trackpoint_counter += 1
+            break #TEMPORARY BREAK FOR TESTING
 
         return all_trackpoints, trackpoint_counter
 
@@ -182,16 +183,23 @@ class InsertProgram:
         """
         folder_files_dict, has_labels_dict = self.get_folder_and_labels_dict()
 
+        keys = list(folder_files_dict.keys()) 
+        unique_keys = set(keys) # get unique keys, got duplicate key errors so this is for testing
+        print("Number of users: ", len(keys))
+        print("Number of unique users: ", len(unique_keys))
         activity_id = 0
         trackpoint_counter = 0
 
         for key, value in folder_files_dict.items(): # key is the user id, value is the list of activity files (.plt)
-            
+            #Define user_id as string, moved from inside the loop to avoid duplicate key errors
+            user_id = str(key)
+            print("Key ", key)
+            print("Value ", value)
             user_label_dict = self.get_transportation_modes(user_id=key, has_labels_dict=has_labels_dict) # get the transportation modes for the user
             activities = [] # list of activities for the user
 
             for file_name in value: # iterate through the list of activity files for the user
-
+                print("File name: ", file_name)
                 file_path = os.path.join(self.data_path + "/Data", key, "Trajectory", file_name)
 
                 try: # get activity data
@@ -204,7 +212,6 @@ class InsertProgram:
                 if (end_time - start_time).total_seconds() < 60 or start_time.year < 2007 or start_time.year > 2012:
                     continue
                 
-                user_id = str(key)
                 activities.append(activity_id) # add the activity id to the list of activities for the user
 
                 # insert into MongoDB
@@ -216,7 +223,7 @@ class InsertProgram:
                     "user_id": user_id # str
                 }
                 
-                print("Adding user", activity_doc)
+                print("Adding activity", activity_doc)
                 self.db.activity.insert_one(activity_doc)
 
                 all_trackpoints, trackpoint_counter = self.get_trackpoint_data(lines, activity_id, trackpoint_counter)
@@ -228,13 +235,15 @@ class InsertProgram:
                 # increment the unique activity id after all trackpoints are inserted and the activity is inserted
                 activity_id += 1
 
+            #Outside the loop, when all activities are inserted
             # insert the user into the database
             user_doc = {
                 "_id": user_id, # str
                 "has_labels": has_labels_dict[key], # bool
                 "activities": activities # list of activity ids
             }
-            print("Adding user ", user_doc)
+            
+            print("Adding user ", user_id, "with # of activities: ", len(activities),  "\n")
             self.db.user.insert_one(user_doc)
     
         
