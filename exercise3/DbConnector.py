@@ -2,7 +2,7 @@ from pymongo import MongoClient, version
 
 """Before start running need to start the server in a separate terminal.
 Go into VM ssh
-starts the server: sudo systemctl start mongod (sudo mongod --bind_ip_all)
+starts the server: sudo mongod --bind_ip_all
 checks status, look for active: sudo systemctl status mongod
 
 This server must be running whenever you are working with
@@ -24,17 +24,20 @@ class DbConnector:
 
     def __init__(self,
                  DATABASE='my_db',
-                 HOST="tdt4225-15.idi.ntnu.no",
+                 HOST="tdt4225-60.idi.ntnu.no",
                  USER="user_15",
                  PASSWORD="vierbest"):
-        #uri = "mongodb://%s:%s@%s/%s" % (USER, PASSWORD, HOST, DATABASE)
-        uri = f"mongodb://{USER}:{PASSWORD}@{HOST}/{DATABASE}"
+        #uri = f"mongodb://{USER}:{PASSWORD}@{HOST}/{DATABASE}"
+        #uri = f"mongodb://{USER}:{PASSWORD}@{HOST}:27017/{DATABASE}"
+        #uri = f"mongodb://{USER}:{PASSWORD}@{HOST}/{DATABASE}?authSource=admin"
+        uri = f"mongodb://{USER}:{PASSWORD}@{HOST}/{DATABASE}?retryWrites=true&w=majority&connectTimeoutMS=30000"
         # Connect to the databases
         try:
             self.client = MongoClient(uri)
             self.db = self.client[DATABASE]
         except Exception as e:
             print("ERROR: Failed to connect to db:", e)
+            
 
         # get database information
         print("You are connected to the database:", self.db.name)
