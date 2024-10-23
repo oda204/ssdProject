@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from pprint import pprint 
 from cloud_connector import CloudConnector
 import os
@@ -261,3 +262,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+=======
+>>>>>>> Stashed changes
