@@ -451,6 +451,92 @@ class QueryProgram:
 
         return no_invalid_activities
 
+
+    from pymongo import MongoClient
+
+    def invalid(self):
+        """
+        Find all users who have invalid activities and the number of invalid activities per user.
+        An invalid activity is defined as an activity with consecutive trackpoints
+        where the timestamps deviate by at least 5 minutes.
+        """
+
+        # Define the aggregation pipeline
+        pipeline = [
+            {
+                '$sort': {
+                    'user_id': 1,        # Sort by user_id
+                    'activity_id': 1,    # Sort by activity_id
+                    'date_time': 1       # Sort by date_time to get consecutive points
+                }
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'user_id': '$user_id',
+                        'activity_id': '$activity_id'
+                    },
+                    'trackpoints': {'$push': '$date_time'}  # Collect trackpoints
+                }
+            },
+            {
+                '$project': {
+                    'user_id': '$_id.user_id',
+                    'activity_id': '$_id.activity_id',
+                    'invalid_count': {
+                        '$size': {
+                            '$filter': {
+                                'input': {
+                                    '$range': [0, {'$subtract': [{'$size': '$trackpoints'}, 1]}]  # Generate indices
+                                },
+                                'as': 'i',
+                                'cond': {
+                                    '$gt': [
+                                        {
+                                            '$divide': [
+                                                {'$subtract': [
+                                                    {'$arrayElemAt': ['$trackpoints', {'$add': ['$$i', 1]}]},  # Next timestamp
+                                                    {'$arrayElemAt': ['$trackpoints', '$$i']}  # Current timestamp
+                                                ]},
+                                                1000 * 60  # Convert milliseconds to minutes
+                                            ]
+                                        },
+                                        5  # 5 minutes
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                '$match': {
+                    'invalid_count': {'$gt': 0}  # Only keep groups with invalid activities
+                }
+            },
+            {
+                '$group': {
+                    '_id': '$user_id',
+                    'invalid_activity_count': {'$sum': 1}  # Count of invalid activities per user
+                }
+            },
+            {
+                '$sort': {
+                    'invalid_activity_count': -1  # Sort by user_id
+                }
+            }
+        ]
+
+        # Execute the aggregation query
+        results = list(self.db.trackpoint.aggregate(pipeline))
+
+        # Format the results as a list of tuples
+        formatted_results = [(result['_id'], result['invalid_activity_count']) for result in results]
+        headers= ["User", "Nr of invalid activities"]
+
+        print(tabulate(formatted_results, headers=headers, tablefmt="grid"))
+
+
     def forbiddenCity(self):
         """
         10. Find the users who have tracked an activity in the Forbidden City of Beijing. 
@@ -481,19 +567,6 @@ class QueryProgram:
         # Print the results in a formatted table
         headers = ["User"]
         print(tabulate(user_ids, headers=headers, tablefmt="grid"))
-
-
-    def usersTransportMode(self):
-        """
-        11. Find all users who have registered transportation_mode and their most used
-        transportation_mode.
-        The answer should be on format (user_id,
-        most_used_transportation_mode) sorted on user_id.
-        Some users may have the same number of activities tagged with e.g.
-        walk and car. In this case it is up to you to decide which transportation
-        mode to include in your answer (choose one).
-        Do not count the rows where the mode is null
-        """
         
 
     def usersTransportMode(self):
