@@ -353,18 +353,7 @@ class QueryProgram:
         return top_20_users
 
 
-    # def altitude(self):
-    #     """
-    #     8. Find the top 20 users who have gained the most altitude meters.
-        
-    #     Output should be a table with (id, total meters gained per user).
-    #     Remember that some altitude-values are invalid
-    #     could use Tabulate for printing tables
-    #     """
-
-
-        
-
+   
     #     self.cursor.execute(activities)
     #     activities = self.cursor.fetchall()
 
@@ -467,24 +456,31 @@ class QueryProgram:
         10. Find the users who have tracked an activity in the Forbidden City of Beijing. 
         coordinates that correspond to: lat 39.916, lon 116.397.
         """
+
+        # Define the aggregation pipeline
         pipeline = [
-            
+            {
+                '$match': {
+                    'lat': {'$gte': 39.916, '$lt': 39.917},  # Match latitudes in the range 39.916 to 39.917
+                    'lon': {'$gte': 116.397, '$lt': 116.398}  # Match longitudes in the range 116.397 to 116.398
+                }
+            },
+            {
+                '$group': {
+                    '_id': '$user_id'  # Group by user_id to get distinct user IDs
+                }
+            }
         ]
 
-        
-        query = """
-        SELECT DISTINCT u.id
-        FROM TRACKPOINT AS t
-        JOIN ACTIVITY AS a ON t.activity_id = a.id
-        JOIN USER AS u ON u.id = a.user_id
-        WHERE lat LIKE '39.916%' AND lon LIKE '116.397%'
-        """
+        # Execute the aggregation query
+        results = list(self.db.trackpoint.aggregate(pipeline))
 
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
+        # Extract user IDs from the results
+        user_ids = [[result['_id']] for result in results]
 
-        headers = ["User", "Latitude", "Longitude"]
-        print(tabulate(results, headers=headers, tablefmt="grid"))
+        # Print the results in a formatted table
+        headers = ["User"]
+        print(tabulate(user_ids, headers=headers, tablefmt="grid"))
 
 
     def usersTransportMode(self):
@@ -498,25 +494,66 @@ class QueryProgram:
         mode to include in your answer (choose one).
         Do not count the rows where the mode is null
         """
-        query = """
-        SELECT user_id, 
-            SUBSTRING_INDEX(GROUP_CONCAT(transportation_mode ORDER BY mode_count DESC, transportation_mode ASC), ',', 1) AS most_used_transportation_mode
-        FROM (
-            SELECT user_id, transportation_mode, COUNT(*) as mode_count
-            FROM ACTIVITY
-            WHERE transportation_mode IS NOT NULL
-            GROUP BY user_id, transportation_mode
-        ) mode_counts
-        GROUP BY user_id
-        ORDER BY user_id
+        
+
+    def usersTransportMode(self):
+        """
+        Find all users who have registered transportation_mode and their most used
+        transportation_mode. The answer should be in the format (user_id,
+        most_used_transportation_mode) sorted by user_id.
+        Some users may have the same number of activities tagged with e.g.
+        walk and car. In this case it is up to you to decide which transportation
+        mode to include in your answer (choose one).
+        Do not count the rows where the mode is null.
         """
 
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
+        pipeline = [
+            {
+                '$match': {
+                    'transportation_mode': {'$ne': None}  # Exclude documents where transportation_mode is null
+                }
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'user_id': '$user_id',
+                        'transportation_mode': '$transportation_mode'
+                    },
+                    'count': {'$sum': 1}  # Count occurrences of each transportation mode per user
+                }
+            },
+            {
+                '$sort': {
+                    '_id.user_id': 1,  # Sort by user_id
+                    'count': -1        # Sort by count in descending order
+                }
+            },
+            {
+                '$group': {
+                    '_id': '$_id.user_id',  # Group by user_id
+                    'most_used_transportation_mode': {'$first': '$_id.transportation_mode'},  # Get the most used mode
+                    'max_count': {'$first': 'count'}  # Get the count of the most used mode
+                }
+            },
+            {
+                '$sort': {
+                    '_id': 1  # Final sort by user_id
+                }
+            }
+        ]
 
-        headers = ["User ID", "Most Used Transportation Mode"]
-        print(tabulate(results, headers=headers, tablefmt="grid"))
-        print("Number of users with registered transportation_mode:", len(results))
+
+        # Execute the aggregation query
+        results = list(self.db.activity.aggregate(pipeline))
+
+        # Format the results as a list of tuples
+        formatted_results = [(result['_id'], result['most_used_transportation_mode']) for result in results]
+
+        headers = ['User', 'Most used transportation mode']
+        print(tabulate(formatted_results, headers=headers, tablefmt="grid"))
+
+        return formatted_results
+
 
 
 
@@ -561,25 +598,25 @@ def main():
         # program.distance2008()
         # print(" ")
 
-        print("8: The 20 users who have gained the most altitude meters")
-        print("-"*15)
-        program.altitude()
-        print(" ")
+        # print("8: The 20 users who have gained the most altitude meters")
+        # print("-"*15)
+        # program.altitude()
+        # print(" ")
 
-        print("9: Find all users who have invalid activities, and the number of invalid activities per user")
-        print("-"*15)
-        program.invalid()
-        print(" ")
+        # print("9: Find all users who have invalid activities, and the number of invalid activities per user")
+        # print("-"*15)
+        # program.invalid()
+        # print(" ")
 
-        print("10: Find the users who have tracked an activity in the Forbidden City of Beijing ")
-        print("-"*15)
-        program.forbiddenCity()
-        print(" ")
+        # print("10: Find the users who have tracked an activity in the Forbidden City of Beijing ")
+        # print("-"*15)
+        # program.forbiddenCity()
+        # print(" ")
         
-        print("11: Users who have registered transportation_mode and their most used transportation_mode")
-        print("-"*15)
-        program.usersTransportMode()
-        print(" ")
+        # print("11: Users who have registered transportation_mode and their most used transportation_mode")
+        # print("-"*15)
+        # program.usersTransportMode()
+        # print(" ")
         
         
     except Exception as e:
