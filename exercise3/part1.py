@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 from pprint import pprint 
 from DbConnector import DbConnector
 import os
@@ -14,7 +13,7 @@ class ActivityTooLongError(Exception):
 
 class InsertProgram:
     def __init__(self):
-        self.connection = CloudConnector()
+        self.connection = DbConnector()
         self.client = self.connection.client
         self.db = self.connection.db
         self.data_path = os.getcwd() + "/dataset/dataset"
@@ -262,5 +261,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-=======
->>>>>>> Stashed changes

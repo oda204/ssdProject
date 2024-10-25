@@ -17,28 +17,36 @@ class QueryProgram:
         inserted into the database).
         """
         # Count users
-        user_count = self.db.user.aggregate({
+        user_count_cursor = self.db.user.aggregate([{
             "$group": {
                 "_id": None,
                 "count": {"$sum": 1}
             }
-        })
+        }])
+
+        user_count = list(user_count_cursor)[0]["count"] if user_count_cursor else 0
+
         
         #Count activities
-        activity_count = self.db.activity.aggregate({
+        activity_count_cursor = self.db.activity.aggregate([{
             "$group": {
-                "_id": null,
+                "_id": None,
                 "count": {"$sum": 1}
             }
-        })
+        }])
+
+        activity_count = list(activity_count_cursor)[0]["count"] if activity_count_cursor else 0
+
         
         #Count trackpoints
-        trackpoint_count = self.db.trackpoint.aggregate({
+        trackpoint_count_cursor = self.db.trackpoint.aggregate([{
             "$group": {
-                "_id": null,
+                "_id": None,
                 "count": {"$sum": 1}
             }
-        })
+        }])
+
+        trackpoint_count = list(trackpoint_count_cursor)[0]["count"] if trackpoint_count_cursor else 0
                 
         print(f"{'Category':<15} {'Count':<10}")
         print(f"{'-'*25}")
@@ -49,14 +57,14 @@ class QueryProgram:
         return user_count, activity_count, trackpoint_count 
     
 
-    def averageActivities(self):
+    def averageActivities(self, user_count, activity_count):
         """
         2. What is the average number of activities per user?
         """
-        user_count, activity_count, _ = self.howMany()
-        average = activity_count / user_count
+
+        average = int(activity_count) / int(user_count)
         
-        print(f"{'Average number of activities':<15} {average[0]:<10}")
+        print(f"{'Average number of activities':<15} {average:<10}")
         
         
     def top20(self):
@@ -436,12 +444,12 @@ def main():
 
         print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
         print("-"*15)
-        program.howMany()
+        user_count, activity_count, _ = program.howMany()
         print(" ")
 
         print("2: Average number of activities per user")
         print("-"*15)
-        program.averageActivities()
+        program.averageActivities(user_count, activity_count)
         print(" ")
 
         print("3: The top 20 users with the most activities")
