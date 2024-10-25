@@ -352,6 +352,67 @@ class QueryProgram:
 
         return top_20_users
 
+    def altitude(self):
+        """
+        Find the top 20 users who have gained the most altitude meters.
+        
+        Output should be a table with (user_id, total meters gained per user).
+        Invalid altitude values are excluded.
+        """
+        # Step 1: Fetch and sort relevant trackpoints
+        trackpoints = list(self.db.trackpoint.find({
+            'altitude': {'$gt': -777}  # Exclude invalid altitude values
+        }).sort([('user_id', 1), ('activity_id', 1), ('date_time', 1)]))
+
+        # Step 2: Initialize a list for storing gains
+        altitude_gains = []
+
+        # Step 3: Calculate gains by user and activity
+        current_user = None
+        current_activity = None
+        previous_altitude = None
+
+        for tp in trackpoints:
+            user_id = tp['user_id']
+            activity_id = tp['activity_id']
+            altitude = tp['altitude']
+
+            # When we encounter a new user or activity, reset previous altitude
+            if user_id != current_user or activity_id != current_activity:
+                current_user = user_id
+                current_activity = activity_id
+                previous_altitude = altitude
+                continue
+
+            # Calculate altitude gain if previous altitude is known
+            if previous_altitude is not None:
+                gain = max(altitude - previous_altitude, 0)  # Ignore negative differences
+                altitude_gains.append((user_id, gain))
+
+            # Update previous altitude for next iteration
+            previous_altitude = altitude
+
+        # Step 4: Sum gains by user
+        user_totals = []
+        for user_id, gain in altitude_gains:
+            # If user already has a recorded total, add to it
+            for i, (uid, total_gain) in enumerate(user_totals):
+                if uid == user_id:
+                    user_totals[i] = (uid, total_gain + gain)
+                    break
+            else:
+                # Otherwise, start a new total for this user
+                user_totals.append((user_id, gain))
+
+        # Step 5: Sort by total gain and take top 20
+        top_20_users = sorted(user_totals, key=lambda x: x[1], reverse=True)[:20]
+
+        # Prepare results for tabulate
+        top_20_users = [(user_id, round(total_gain / 3.281, 2)) for user_id, total_gain in top_20_users]
+
+        # Print results
+        headers = ["User", "Total Meters Gained"]
+        print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
 
    
     #     self.cursor.execute(activities)
@@ -451,8 +512,6 @@ class QueryProgram:
 
         return no_invalid_activities
 
-
-    from pymongo import MongoClient
 
     def invalid(self):
         """
