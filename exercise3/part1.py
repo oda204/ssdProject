@@ -242,17 +242,17 @@ def main():
     try:
         program = InsertProgram()
 
-        program.drop_coll(collection_name="user")
-        program.drop_coll(collection_name="activity")
-        program.drop_coll(collection_name="trackpoint")
+        # program.drop_coll(collection_name="user")
+        # program.drop_coll(collection_name="activity")
+        # program.drop_coll(collection_name="trackpoint")
 
-        program.create_coll(collection_name="user")
-        program.create_coll(collection_name="activity")
-        program.create_coll(collection_name="trackpoint")
+        # program.create_coll(collection_name="user")
+        # program.create_coll(collection_name="activity")
+        # program.create_coll(collection_name="trackpoint")
         
-        program.show_coll()
-        program.insert_data()
-        program.show_collection_counts()
+        # program.show_coll()
+        # program.insert_data()
+        # program.show_collection_counts()
         
     except Exception as e:
         print("ERROR: Failed to use database:", e)

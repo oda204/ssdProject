@@ -276,53 +276,128 @@ class QueryProgram:
 
         print(f"Total distance walked by user 112 in 2008: {total_distance:.2f} km")
      
-        
+
     def altitude(self):
         """
         8. Find the top 20 users who have gained the most altitude meters.
         
-        Output should be a table with (id, total meters gained per user).
-        Remember that some altitude-values are invalid
-        concrete tip about how to calculate it
-        USE HAVERSINE PACKAGE for calculating distance
-        could use Tabulate for printing tables
+        Output should be a table with (user_id, total meters gained per user).
+        Invalid altitude values are excluded.
         """
+        pipeline = [
+            {
+                '$match': {
+                    'altitude': {'$gt': -777}  # Exclude invalid altitude values
+                }
+            },
+            {
+                '$sort': {
+                    'activity_id': 1,  # Sort by activity_id to process trackpoints in order
+                    'date_time': 1      # Sort by date_time within each activity
+                }
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'user_id': '$user_id',
+                        'activity_id': '$activity_id'
+                    },
+                    'trackpoints': {
+                        '$push': {
+                            'altitude': '$altitude',
+                            'date_time': '$date_time'
+                        }
+                    }
+                }
+            },
+            {
+                '$unwind': '$trackpoints'
+            },
+            {
+                '$group': {
+                    '_id': '$_id.user_id',
+                    'total_gain': {
+                        '$sum': {
+                            '$max': [
+                                {'$subtract': ['$trackpoints.altitude', {'$arrayElemAt': ['$trackpoints.altitude', -1]}]},
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                '$sort': {'total_gain': -1}  # Sort by total gain in descending order
+            },
+            {
+                '$limit': 20  # Get top 20 users
+            },
+            {
+                '$project': {
+                    '_id': 0,  # Exclude the _id field
+                    'user_id': '$_id',
+                    'total_meters_gained': {'$divide': ['$total_gain', 3.281]}  # Convert to meters
+                }
+            }
+        ]
 
-        
+        results = list(self.db.trackpoint.aggregate(pipeline))
 
-        self.cursor.execute(activities)
-        activities = self.cursor.fetchall()
+        # Prepare results for tabulate
+        top_20_users = [(result['user_id'], round(result['total_meters_gained'], 2)) for result in results]
 
-        user_altitude = dict()
-
-        for i in range(0, 182):
-            user_altitude[i] = 0
-        
-        for i in range(len(activities)):
-            activity, user = activities[i][0], activities[i][1]
-            altitude_gain = 0
-            
-            trackpoints_query = f"""
-            SELECT altitude 
-            FROM TRACKPOINT
-            WHERE activity_id ={activity} AND altitude > -777
-            ORDER BY date_time ASC
-            """
-            self.cursor.execute(trackpoints_query)
-            trackpoints = self.cursor.fetchall()
-
-            for i in range(1, len(trackpoints)):
-                gain = trackpoints[i][0] - trackpoints[i-1][0] # calculate the elevation gained since last trackpoint
-                if gain > 0:
-                    altitude_gain += gain
-
-            user_altitude[user] += altitude_gain / 3.281 # convert to meters
-        
-        top_20_users = sorted(user_altitude.items(), key=lambda x:x[1], reverse=True)[:20]
-
-        headers = ["User", "Total Meters gained"]
+        # Print results
+        headers = ["User", "Total Meters Gained"]
         print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
+
         return top_20_users
+
+
+    # def altitude(self):
+    #     """
+    #     8. Find the top 20 users who have gained the most altitude meters.
+        
+    #     Output should be a table with (id, total meters gained per user).
+    #     Remember that some altitude-values are invalid
+    #     could use Tabulate for printing tables
+    #     """
+
+
+        
+
+    #     self.cursor.execute(activities)
+    #     activities = self.cursor.fetchall()
+
+    #     user_altitude = dict()
+
+    #     for i in range(0, 182):
+    #         user_altitude[i] = 0
+        
+    #     for i in range(len(activities)):
+    #         activity, user = activities[i][0], activities[i][1]
+    #         altitude_gain = 0
+            
+    #         trackpoints_query = f"""
+    #         SELECT altitude 
+    #         FROM TRACKPOINT
+    #         WHERE activity_id ={activity} AND altitude > -777
+    #         ORDER BY date_time ASC
+    #         """
+    #         self.cursor.execute(trackpoints_query)
+    #         trackpoints = self.cursor.fetchall()
+
+    #         for i in range(1, len(trackpoints)):
+    #             gain = trackpoints[i][0] - trackpoints[i-1][0] # calculate the elevation gained since last trackpoint
+    #             if gain > 0:
+    #                 altitude_gain += gain
+
+    #         user_altitude[user] += altitude_gain / 3.281 # convert to meters
+        
+    #     top_20_users = sorted(user_altitude.items(), key=lambda x:x[1], reverse=True)[:20]
+
+    #     headers = ["User", "Total Meters gained"]
+    #     print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
+    #     return top_20_users
 
         
     def invalid(self):
@@ -392,6 +467,10 @@ class QueryProgram:
         10. Find the users who have tracked an activity in the Forbidden City of Beijing. 
         coordinates that correspond to: lat 39.916, lon 116.397.
         """
+        pipeline = [
+            
+        ]
+
         
         query = """
         SELECT DISTINCT u.id
