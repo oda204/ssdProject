@@ -12,7 +12,7 @@ class QueryProgram:
         self.client = self.connection.client
         self.db = self.connection.db
     
-    def howMany(self): # TODO: may be that the user_count, activity_count, trackpoint_count are documents and not actual counts. Try doc['count']
+    def howMany(self): 
         """
         1. How many users, activities and trackpoints are there in the dataset (after it is
         inserted into the database).
@@ -95,11 +95,8 @@ class QueryProgram:
         table_data = [(result['_id'], result['activity_count']) for result in results]
         headers = ["User ID", "Activity Count"]
 
-        # Print the table
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
-        # pprint(results)
         
-
 
     def taxi(self):
         """
@@ -121,6 +118,7 @@ class QueryProgram:
 
         users = [result['user_id'] for result in results]
         print(users)
+
 
     def transporationModes(self):
         """
@@ -202,8 +200,6 @@ class QueryProgram:
             }
         ]
 
-
-
         results = list(self.db.activity.aggregate(pipeline))
 
         results = [(result['year'], result['activity_count'], round(result['total_hours'],0)) for result in results]
@@ -263,7 +259,6 @@ class QueryProgram:
                 }
             ]
 
-
             # Fetch trackpoints
             trackpoints = list(self.db.trackpoint.aggregate(trackpoints_pipeline))
 
@@ -277,7 +272,7 @@ class QueryProgram:
 
         print(f"Total distance walked by user 112 in 2008: {total_distance:.2f} km")
      
-
+        
     def altitude(self):
         """
         8. Find the top 20 users who have gained the most altitude meters.
@@ -285,129 +280,6 @@ class QueryProgram:
         Output should be a table with (user_id, total meters gained per user).
         Invalid altitude values are excluded.
         """
-        pipeline = [
-            {
-                '$match': {
-                    'altitude': {'$gt': -777}  # Exclude invalid altitude values
-                }
-            },
-            {
-                '$sort': {
-                    'activity_id': 1,  # Sort by activity_id to process trackpoints in order
-                    'date_time': 1      # Sort by date_time within each activity
-                }
-            },
-            {
-                '$group': {
-                    '_id': {
-                        'user_id': '$user_id',
-                        'activity_id': '$activity_id'
-                    },
-                    'trackpoints': {
-                        '$push': {
-                            'altitude': '$altitude',
-                            'date_time': '$date_time'
-                        }
-                    }
-                }
-            },
-            {
-                '$unwind': '$trackpoints'
-            },
-            {
-                '$group': {
-                    '_id': '$_id.user_id',
-                    'total_gain': {
-                        '$sum': {
-                            '$max': [
-                                {'$subtract': ['$trackpoints.altitude', {'$arrayElemAt': ['$trackpoints.altitude', -1]}]},
-                                0
-                            ]
-                        }
-                    }
-                }
-            },
-            {
-                '$sort': {'total_gain': -1}  # Sort by total gain in descending order
-            },
-            {
-                '$limit': 20  # Get top 20 users
-            },
-            {
-                '$project': {
-                    '_id': 0,  # Exclude the _id field
-                    'user_id': '$_id',
-                    'total_meters_gained': {'$divide': ['$total_gain', 3.281]}  # Convert to meters
-                }
-            }
-        ]
-
-        results = list(self.db.trackpoint.aggregate(pipeline))
-
-        # Prepare results for tabulate
-        top_20_users = [(result['user_id'], round(result['total_meters_gained'], 2)) for result in results]
-
-        # Print results
-        headers = ["User", "Total Meters Gained"]
-        print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
-
-        return top_20_users
-
-    def altitude(self):
-        """
-        Find the top 20 users who have gained the most altitude meters.
-        
-        Output should be a table with (user_id, total meters gained per user).
-        Invalid altitude values are excluded.
-        """
-        # get all user-activity pairs
-        users = list(self.db.user.distinct('_id'))
-
-        user_altitude = dict()
-
-        for user in users:
-            print(user_altitude)
-            total_gain_per_user = 0
-            user_doc = self.db.user.find_one(
-                {'_id': user},
-                {'_id': 0, 'activities': 1}  # Projection to include only 'activities' and exclude '_id'
-            )
-
-            activities = user_doc.get('activities', [])
-
-            print(activities)
-            for activity in activities:
-                print("Activitiy; ", activity)
-                total_gain_per_activity = 0
-
-                trackpoints = list(self.db.trackpoint.find({
-                    'user_id': user,
-                    'activity_id': activity,
-                    'altitude': {'$gt': -777}  # Exclude invalid altitude values
-                }).sort([('activity_id', 1), ('date_time', 1)]))
-
-                for i in range(1, len(trackpoints)):
-                    gain = trackpoints[i]['altitude'] - trackpoints[i-1]['altitude']
-                    if gain > 0:
-                        total_gain_per_activity += gain
-                
-                total_gain_per_user += total_gain_per_activity
-            
-            user_altitude[user] = total_gain_per_user
-        
-
-        # Sort by total gain and take top 20
-        top_20_users = sorted(user_altitude, key=lambda x: x[1], reverse=True)[:20]
-
-        # Prepare results for tabulate
-        top_20_users = [(user_id, round(total_gain / 3.281, 2)) for user_id, total_gain in top_20_users]
-
-        # Print results
-        headers = ["User", "Total Meters Gained"]
-        print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
-
-        
-    def altitude(self):
         # Create indexes for query optimization
         self.db.trackpoint.create_index([("user_id", 1), ("activity_id", 1)])
         self.db.trackpoint.create_index([("altitude", 1)])
