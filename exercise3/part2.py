@@ -1,4 +1,4 @@
-import pprint
+from pprint import pprint
 from DbConnector import DbConnector
 from haversine import haversine, Unit
 from tabulate import tabulate
@@ -66,33 +66,39 @@ class QueryProgram:
         
         print(f"{'Average number of activities':<15} {average:<10}")
         
-        
+
     def top20(self):
         """
         3. What is the top 20 of users with the most activities?
         """
         pipeline = [
             {
+                '$project': {
+                    '_id': 1,
+                    'activity_count': {'$size': '$activities'}
+                }
+            },
+            {
                 '$sort': {
-                    '$size': {'$actvities': -1}
+                    'activity_count': -1
                 }
             },
             {
                 '$limit': 20
-            }, 
-            {
-                '$project': {
-                    '_id': 1,
-                    'activity_count': {
-                        '$size': '$activities'
-                    }
-                }
             }
         ]
-        results = self.db.user.aggregate(pipeline)
+        
+        results = list(self.db.user.aggregate(pipeline))
 
-        print(pprint(results))
-    
+         # Convert results into a list of tuples for tabulate
+        table_data = [(result['_id'], result['activity_count']) for result in results]
+        headers = ["User ID", "Activity Count"]
+
+        # Print the table
+        print(tabulate(table_data, headers=headers, tablefmt="grid"))
+        # pprint(results)
+        
+
 
     def taxi(self):
         """
@@ -110,9 +116,10 @@ class QueryProgram:
             }
         ]
 
-        results = self.db.activity.aggregate(pipeline)
+        results =list(self.db.activity.aggregate(pipeline))
 
-        print(pprint(results))
+        users = [result['user_id'] for result in results]
+        print(users)
 
     def transporationModes(self):
         """
@@ -144,9 +151,11 @@ class QueryProgram:
             }
         ]
 
-        results = self.db.activity.aggregate(pipeline)
+        results = list(self.db.activity.aggregate(pipeline))
 
-        print(pprint(results))
+        results = [(result['transportation_mode'], result['count']) for result in results]
+        headers = ["Transportation Mode", "Activity Count"]
+        print(tabulate(results, headers=headers, tablefmt="grid"))
     
 
     def year(self):
@@ -159,7 +168,7 @@ class QueryProgram:
         pipeline = [
             {
                 '$addFields': {
-                    'year': { '$year': '$start_time' }  # Extract year from start_time
+                    'year': { '$year': '$start_date_time' }  # Extract year from start_time
                 }
             },
             {
@@ -169,7 +178,7 @@ class QueryProgram:
                     'total_hours': {
                         '$sum': {
                             '$divide': [
-                                { '$subtract': ['$end_time', '$start_time'] },  # Calculate duration for each activity
+                                { '$subtract': ['$end_date_time', '$start_date_time'] },  # Calculate duration for each activity
                                 3600000  # Convert milliseconds to hours
                             ]
                         }
@@ -188,15 +197,18 @@ class QueryProgram:
                 }
             },
             {
-                '$sort': { 'year': 1 }  # Optional: Sort by year in ascending order
+                '$sort': { 'activity_count': -1 }  # Optional: Sort by year in ascending order
             }
         ]
 
-        results = self.db.activity.aggregate(pipeline)
 
-        # Print results
-        for result in results:
-            pprint(result)
+
+        results = list(self.db.activity.aggregate(pipeline))
+
+        results = [(result['year'], result['activity_count'], round(result['total_hours'],0)) for result in results]
+
+        headers = ["Year", "Activity Count", "Total Hours"]
+        print(tabulate(results, headers=headers, tablefmt="grid"))
 
 
     def distance2008(self):
@@ -442,30 +454,30 @@ def main():
     try:
         program = QueryProgram()  
 
-        print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
-        print("-"*15)
-        user_count, activity_count, _ = program.howMany()
-        print(" ")
+        # print("1: Number of users, activities and trackpoints in the dataset (after it is inserted into the database)")
+        # print("-"*15)
+        # user_count, activity_count, _ = program.howMany()
+        # print(" ")
 
-        print("2: Average number of activities per user")
-        print("-"*15)
-        program.averageActivities(user_count, activity_count)
-        print(" ")
+        # print("2: Average number of activities per user")
+        # print("-"*15)
+        # program.averageActivities(user_count, activity_count)
+        # print(" ")
 
-        print("3: The top 20 users with the most activities")
-        print("-"*15)
-        program.top20()
-        print(" ")
+        # print("3: The top 20 users with the most activities")
+        # print("-"*15)
+        # program.top20()
+        # print(" ")
 
-        print("4: Users who have taken a taxi")
-        print("-"*15)
-        print(program.taxi())
-        print(" ")
+        # print("4: Users who have taken a taxi")
+        # print("-"*15)
+        # program.taxi()
+        # print(" ")
 
-        print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
-        print("-"*15)
-        program.transporationModes()
-        print(" ")
+        # print("5: Types of transportation modes and count of activities tagged with these transportation mode labels")
+        # print("-"*15)
+        # program.transporationModes()
+        # print(" ")
 
         print("6: Year with the most activities and most recorded hours")
         print("-"*15)
