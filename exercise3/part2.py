@@ -4,6 +4,7 @@ from haversine import haversine, Unit
 from tabulate import tabulate
 from collections import defaultdict
 from datetime import timedelta
+from bson.son import SON
 
 class QueryProgram:
     def __init__(self):
@@ -359,53 +360,44 @@ class QueryProgram:
         Output should be a table with (user_id, total meters gained per user).
         Invalid altitude values are excluded.
         """
-        # Step 1: Fetch and sort relevant trackpoints
-        trackpoints = list(self.db.trackpoint.find({
-            'altitude': {'$gt': -777}  # Exclude invalid altitude values
-        }).sort([('user_id', 1), ('activity_id', 1), ('date_time', 1)]))
+        # get all user-activity pairs
+        users = list(self.db.user.distinct('_id'))
 
-        # Step 2: Initialize a list for storing gains
-        altitude_gains = []
+        user_altitude = dict()
 
-        # Step 3: Calculate gains by user and activity
-        current_user = None
-        current_activity = None
-        previous_altitude = None
+        for user in users:
+            print(user_altitude)
+            total_gain_per_user = 0
+            user_doc = self.db.user.find_one(
+                {'_id': user},
+                {'_id': 0, 'activities': 1}  # Projection to include only 'activities' and exclude '_id'
+            )
 
-        for tp in trackpoints:
-            user_id = tp['user_id']
-            activity_id = tp['activity_id']
-            altitude = tp['altitude']
+            activities = user_doc.get('activities', [])
 
-            # When we encounter a new user or activity, reset previous altitude
-            if user_id != current_user or activity_id != current_activity:
-                current_user = user_id
-                current_activity = activity_id
-                previous_altitude = altitude
-                continue
+            print(activities)
+            for activity in activities:
+                print("Activitiy; ", activity)
+                total_gain_per_activity = 0
 
-            # Calculate altitude gain if previous altitude is known
-            if previous_altitude is not None:
-                gain = max(altitude - previous_altitude, 0)  # Ignore negative differences
-                altitude_gains.append((user_id, gain))
+                trackpoints = list(self.db.trackpoint.find({
+                    'user_id': user,
+                    'activity_id': activity,
+                    'altitude': {'$gt': -777}  # Exclude invalid altitude values
+                }).sort([('activity_id', 1), ('date_time', 1)]))
 
-            # Update previous altitude for next iteration
-            previous_altitude = altitude
+                for i in range(1, len(trackpoints)):
+                    gain = trackpoints[i]['altitude'] - trackpoints[i-1]['altitude']
+                    if gain > 0:
+                        total_gain_per_activity += gain
+                
+                total_gain_per_user += total_gain_per_activity
+            
+            user_altitude[user] = total_gain_per_user
+        
 
-        # Step 4: Sum gains by user
-        user_totals = []
-        for user_id, gain in altitude_gains:
-            # If user already has a recorded total, add to it
-            for i, (uid, total_gain) in enumerate(user_totals):
-                if uid == user_id:
-                    user_totals[i] = (uid, total_gain + gain)
-                    break
-            else:
-                # Otherwise, start a new total for this user
-                user_totals.append((user_id, gain))
-
-        # Step 5: Sort by total gain and take top 20
-        top_20_users = sorted(user_totals, key=lambda x: x[1], reverse=True)[:20]
+        # Sort by total gain and take top 20
+        top_20_users = sorted(user_altitude, key=lambda x: x[1], reverse=True)[:20]
 
         # Prepare results for tabulate
         top_20_users = [(user_id, round(total_gain / 3.281, 2)) for user_id, total_gain in top_20_users]
@@ -414,103 +406,82 @@ class QueryProgram:
         headers = ["User", "Total Meters Gained"]
         print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
 
-   
-    #     self.cursor.execute(activities)
-    #     activities = self.cursor.fetchall()
-
-    #     user_altitude = dict()
-
-    #     for i in range(0, 182):
-    #         user_altitude[i] = 0
         
-    #     for i in range(len(activities)):
-    #         activity, user = activities[i][0], activities[i][1]
-    #         altitude_gain = 0
-            
-    #         trackpoints_query = f"""
-    #         SELECT altitude 
-    #         FROM TRACKPOINT
-    #         WHERE activity_id ={activity} AND altitude > -777
-    #         ORDER BY date_time ASC
-    #         """
-    #         self.cursor.execute(trackpoints_query)
-    #         trackpoints = self.cursor.fetchall()
+    def altitude(self):
+        # Create indexes for query optimization
+        self.db.trackpoint.create_index([("user_id", 1), ("activity_id", 1)])
+        self.db.trackpoint.create_index([("altitude", 1)])
+        self.db.trackpoint.create_index([("date_time", 1)])
 
-    #         for i in range(1, len(trackpoints)):
-    #             gain = trackpoints[i][0] - trackpoints[i-1][0] # calculate the elevation gained since last trackpoint
-    #             if gain > 0:
-    #                 altitude_gain += gain
+        pipeline = [
+            # Sort trackpoints by user, activity, and date_time
+            {
+                "$sort": {
+                    "user_id": 1,
+                    "activity_id": 1,
+                    "date_time": 1
+                }
+            },
+            # Use window function to calculate altitude difference
+            {
+                "$setWindowFields": {
+                    "partitionBy": {"user_id": "$user_id", "activity_id": "$activity_id"},
+                    "sortBy": {"date_time": 1},
+                    "output": {
+                        "prev_altitude": {
+                            "$shift": {
+                                "output": "$altitude",
+                                "by": -1,
+                                "default": None
+                            }
+                        }
+                    }
+                }
+            },
+            # Calculate positive altitude gain
+            {
+                "$project": {
+                    "user_id": 1,
+                    "altitude_gain": {
+                        "$max": [
+                            {"$subtract": [
+                                "$altitude", 
+                                {"$ifNull": ["$prev_altitude", "$altitude"]}
+                            ]},
+                            0
+                        ]
+                    }
+                }
+            },
+            # Sum altitude gains for each user
+            {
+                "$group": {
+                    "_id": "$user_id",
+                    "total_altitude_gain": {"$sum": "$altitude_gain"}
+                }
+            },
+            # Sort by total altitude gain in descending order
+            {
+                "$sort": {"total_altitude_gain": -1}
+            },
+            # Limit to top 20 users
+            {
+                "$limit": 20
+            },
+            # Project the desired output format
+            {
+                "$project": {
+                    "_id": 0,
+                    "id": "$_id",
+                    "total_meters_gained": {"$round": [{"$divide": ["$total_altitude_gain", 3.281]}, 0]}
+                }
+            }
+        ]
 
-    #         user_altitude[user] += altitude_gain / 3.281 # convert to meters
-        
-    #     top_20_users = sorted(user_altitude.items(), key=lambda x:x[1], reverse=True)[:20]
+        results = list(self.db.trackpoint.aggregate(pipeline, allowDiskUse=True))
+        results = [(result['id'], result['total_meters_gained']) for result in results]
 
-    #     headers = ["User", "Total Meters gained"]
-    #     print(tabulate(top_20_users, headers=headers, tablefmt="grid"))
-    #     return top_20_users
-
-        
-    def invalid(self):
-        """
-        9. Find all users who have invalid activities, and the number of invalid activities per user
-        An invalid activity is defined as an activity with consecutive trackpoints
-        where the timestamps deviate with at least 5 minutes.
-        see tip for how to take advantage of datetime format in queriees . think there is functin to easily calcualte this
-        """
-
-        activities = """
-        SELECT id as activity_id, user_id
-        FROM ACTIVITY
-        """
-
-        self.cursor.execute(activities)
-        activities = self.cursor.fetchall()
-
-        no_invalid_activities = dict()
-
-        for i in range(0, 182):
-            no_invalid_activities[i] = 0
-        
-        for i in range(len(activities)):
-            activity, user = activities[i][0], activities[i][1]
-            
-            trackpoints_query = f"""
-            SELECT date_time 
-            FROM TRACKPOINT
-            WHERE activity_id ={activity}
-            ORDER BY date_time 
-            """
-            self.cursor.execute(trackpoints_query)
-            trackpoints = self.cursor.fetchall()
-
-            for i in range(1, len(trackpoints)):
-                if (trackpoints[i][0] - trackpoints[i-1][0]) > timedelta(minutes = 5):
-                  no_invalid_activities[user] += 1
-                  break
-        # Sort users by the number of invalid activities in descending order
-        no_invalid_activities = sorted(no_invalid_activities.items(), key=lambda x: x[1], reverse=True)
-
-        # Prepare and display results
-        nr_of_user_invalid_activities = 0
-        users_without_invalid_activities = []
-        for user, count in no_invalid_activities:
-            if count > 0:
-                nr_of_user_invalid_activities += 1
-            else:
-                users_without_invalid_activities.append(user)
-                
-        top_20_users_invalid_activities = no_invalid_activities[:20]
-
-        print("Number of users with invalid activities: ", nr_of_user_invalid_activities)
-        print("Users without invalid activites: ", users_without_invalid_activities)
-        print("Total number of invalid activities: ", sum([count for _, count in no_invalid_activities]))
-        print(" ")
-        print("Top 20 users with the most invalid activities:")
-
-        headers = ["User", "Number of Invalid Activities"]
-        print(tabulate(top_20_users_invalid_activities, headers=headers, tablefmt="grid"))
-
-        return no_invalid_activities
+        print(tabulate(results, headers=["User ID", "Total meters gained"], tablefmt="grid"))
 
 
     def invalid(self):
@@ -730,10 +701,10 @@ def main():
         # program.distance2008()
         # print(" ")
 
-        # print("8: The 20 users who have gained the most altitude meters")
-        # print("-"*15)
-        # program.altitude()
-        # print(" ")
+        print("8: The 20 users who have gained the most altitude meters")
+        print("-"*15)
+        program.altitude()
+        print(" ")
 
         # print("9: Find all users who have invalid activities, and the number of invalid activities per user")
         # print("-"*15)
