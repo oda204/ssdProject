@@ -213,10 +213,11 @@ class QueryProgram:
 
     def distance2008(self):
         """
-        7. Find the total distance (in km) walked in 2008, by user with id=112.
+        7. Find the total distance (in km) walked in 2008 by user with id=112.
         """
-        # THIS CODE WILL NOT WORK; HAVE TO CALCULATE USING HAVERSINE!
-        pipeline = [
+
+        # Step 1: Find activity_ids for user 112 in 2008 with transportation mode 'walk'
+        activities_pipeline = [
             {
                 '$match': {
                     'user_id': '112',  # Match user with id=112
@@ -225,7 +226,7 @@ class QueryProgram:
             },
             {
                 '$addFields': {
-                    'year': { '$year': '$start_time' }  # Extract the year from start_time
+                    'year': { '$year': '$start_date_time' }  # Extract the year from start_time
                 }
             },
             {
@@ -234,52 +235,47 @@ class QueryProgram:
                 }
             },
             {
-                '$group': {
-                    '_id': None,  # We don't need to group by a specific field
-                    'total_distance': { '$sum': { '$divide': ['$distance', 1000] } }  # Sum distances and convert meters to km
-                }
-            },
-            {
                 '$project': {
-                    '_id': 0,  # Exclude _id
-                    'total_distance_km': '$total_distance'  # Rename total_distance to total_distance_km
+                    'activity_id': '$_id'  # Project only the activity_id
                 }
             }
         ]
 
-        results = list(self.db.activity.aggregate(pipeline))
+        # Fetch activity_ids
+        activities = list(self.db.activity.aggregate(activities_pipeline))
+        activity_ids = [activity['activity_id'] for activity in activities]
 
-        # Print results
-        pprint(results)
-
-        
-        query = """
-        SELECT t1.lat, t1.lon, t2.lat, t2.lon
-        FROM TRACKPOINT t1
-        JOIN TRACKPOINT t2 ON t1.activity_id = t2.activity_id AND t1.id + 1 = t2.id
-        JOIN ACTIVITY a ON t1.activity_id = a.id
-        WHERE a.user_id = 112
-        AND a.transportation_mode = 'walk'
-        AND YEAR(a.start_date_time) = 2008
-        ORDER BY t1.activity_id, t1.id
-        """
-        #Using activity_id to ensure only points from same activity are used
-        #using id+1 to get the next point in the same activity, to get consecutive points
-        
-        self.cursor.execute(query)
-        results = self.cursor.fetchall()
-        
         total_distance = 0
-        for lat1, lon1, lat2, lon2 in results:
-            point1 = (lat1, lon1)
-            point2 = (lat2, lon2)
-            distance = haversine(point1, point2, unit=Unit.KILOMETERS)
-            total_distance += distance
-        
+        # Step 2: Retrieve trackpoints for these activities
+        for activity_id in activity_ids:
+            trackpoints_pipeline = [
+                {
+                    '$match': {
+                        'activity_id': activity_id  # Match trackpoints by activity_id
+                    }
+                },
+                {
+                    '$project': {
+                        'lat': 1,  # Include latitude
+                        'lon': 1   # Include longitude
+                    }
+                }
+            ]
+
+
+            # Fetch trackpoints
+            trackpoints = list(self.db.trackpoint.aggregate(trackpoints_pipeline))
+
+            # Step 3: Calculate the total distance using Haversine formula
+            for i in range(1, len(trackpoints)):
+                lat1, lon1 = trackpoints[i - 1]['lat'], trackpoints[i - 1]['lon']
+                lat2, lon2 = trackpoints[i]['lat'], trackpoints[i]['lon']
+                point1 = (lat1, lon1)
+                point2 = (lat2, lon2)
+                total_distance += haversine(point1, point2, unit=Unit.KILOMETERS)
+
         print(f"Total distance walked by user 112 in 2008: {total_distance:.2f} km")
-        
-        return total_distance
-        
+     
         
     def altitude(self):
         """
@@ -292,10 +288,7 @@ class QueryProgram:
         could use Tabulate for printing tables
         """
 
-        activities = """
-        SELECT id as activity_id, user_id
-        FROM ACTIVITY
-        """
+        
 
         self.cursor.execute(activities)
         activities = self.cursor.fetchall()
@@ -479,15 +472,15 @@ def main():
         # program.transporationModes()
         # print(" ")
 
-        print("6: Year with the most activities and most recorded hours")
-        print("-"*15)
-        program.year()
-        print(" ")
+        # print("6: Year with the most activities and most recorded hours")
+        # print("-"*15)
+        # program.year()
+        # print(" ")
         
-        print("7: Total distance walked by user 112 in 2008")
-        print("-"*15)
-        program.distance2008()
-        print(" ")
+        # print("7: Total distance walked by user 112 in 2008")
+        # print("-"*15)
+        # program.distance2008()
+        # print(" ")
 
         print("8: The 20 users who have gained the most altitude meters")
         print("-"*15)

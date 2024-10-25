@@ -106,7 +106,7 @@ class InsertProgram:
         return start_time, end_time, transportation_mode, lines
     
         
-    def get_trackpoint_data(self, lines, activity_id, trackpoint_counter):
+    def get_trackpoint_data(self, lines, user_id, activity_id, trackpoint_counter):
         """
         Returns a list of all trackpoint documents for a given activity.
         """      
@@ -129,9 +129,11 @@ class InsertProgram:
             date_time = datetime.strptime(f"{date} {time}", '%Y-%m-%d %H:%M:%S')
             trackpoint = {
                 "_id": trackpoint_counter, # int
-                "activity_id": activity_id,
+                "user_id": user_id, # str
+                "activity_id": activity_id, # int
                 "lat": lat,
                 "lon": lon,
+                "altitude": altitude,
                 "date_days": date_days,
                 "date_time": date_time
             }
@@ -189,7 +191,7 @@ class InsertProgram:
                 print("Adding activity", activity_doc)
                 self.db.activity.insert_one(activity_doc)
 
-                all_trackpoints, trackpoint_counter = self.get_trackpoint_data(lines, activity_id, trackpoint_counter)
+                all_trackpoints, trackpoint_counter = self.get_trackpoint_data(lines, user_id, activity_id, trackpoint_counter)
                 print(f"Adding {len(all_trackpoints)} trackpoints to the {activity_id}")
 
                 # if the activity is not inserted, it will automatically have skipped the trackpoint data
